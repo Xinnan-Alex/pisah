@@ -1,0 +1,5 @@
+{
+    "sweetpad.build.xcodeWorkspacePath": "ios/Pisah.xcodeproj",
+    "sweetpad.build.xcodebuildCommand": ".vscode/xcodebuild-sweetpad.sh",
+    "lldb.library": "/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Versions/A/LLDB"
+}
