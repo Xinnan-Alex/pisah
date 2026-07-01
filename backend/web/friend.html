@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pisah · split the bill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Figtree:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Figtree',sans-serif;color:#221B14;
+       background:radial-gradient(120% 80% at 50% 0%,#FBEFE8 0%,#F1E7DA 55%,#EADDCB 100%);
+       min-height:100vh}
+  #app{max-width:440px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+  .pad{padding:0 22px}
+  h1,h2{font-family:'Bricolage Grotesque';letter-spacing:-.02em;margin:0}
+  .tap{cursor:pointer;transition:transform .12s ease;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none}
+  .tap:active{transform:scale(.98)}
+  .btn{background:#F25C3B;color:#fff;border:none;border-radius:16px;padding:16px;width:100%;
+       font:700 15px 'Figtree';box-shadow:0 8px 20px rgba(242,92,59,.3);cursor:pointer}
+  .btn:disabled{opacity:.5;box-shadow:none}
+  input{width:100%;background:#F6F1EA;border:1.5px solid #ECE3D6;border-radius:14px;
+        padding:15px 16px;font:600 15px 'Figtree';color:#221B14;outline:none}
+  .spin{width:22px;height:22px;border:2px solid #E0D6C8;border-top-color:#F25C3B;border-radius:50%;
+        animation:sp .8s linear infinite;margin:40px auto}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  ::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+<div id="app"><div class="spin"></div></div>
+
+<script>
+const app = document.getElementById('app');
+const slug = decodeURIComponent((location.pathname.split('/').filter(Boolean).pop()) || '');
+const TKEY = 'pisah:' + slug + ':token';
+const NKEY = 'pisah:' + slug + ':name';
+const rm = s => 'RM ' + (s / 100).toFixed(2);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+let S = { split: null, items: [], taxTotalSen: 0, me: localStorage.getItem(NKEY) || '', selected: new Set(), share: null };
+let showShareBreakdown = false;
+
+function absorbSplit(d) {
+  S.split = d.split;
+  S.items = d.items || [];
+  if (d.taxTotalSen != null) S.taxTotalSen = d.taxTotalSen;
+}
+
+// Mirrors backend/share — integer sen, round half-up per division.
+function roundDiv(a, b) {
+  if (b <= 0) return 0;
+  return Math.floor((a + Math.floor(b / 2)) / b);
+}
+
+function estimateBreakdown() {
+  const lines = [];
+  let claimed = 0;
+  for (const it of S.items) {
+    if (!S.selected.has(it.id)) continue;
+    const others = (it.claimedBy || []).filter(n => n !== S.me);
+    const claimants = Math.max(others.length + 1, 1);
+    const portion = roundDiv(it.lineTotalSen, claimants);
+    let name = it.name;
+    if (claimants > 1) name = it.name + ' · shared ÷' + claimants;
+    lines.push({ name, amtSen: portion });
+    claimed += portion;
+  }
+  const sub = S.split?.subtotalSen || 0;
+  const tax = S.taxTotalSen || 0;
+  const owed = sub <= 0 ? claimed : claimed + roundDiv(claimed * tax, sub);
+  const taxSen = owed - claimed;
+
+  const sp = S.split || {};
+  const parts = [
+    { label: 'SST', sen: sp.sstSen || 0 },
+    { label: 'Service charge', sen: sp.serviceSen || 0 },
+    { label: 'Rounding', sen: sp.roundingSen || 0 },
+  ].filter(p => p.sen > 0);
+
+  const taxLines = [];
+  if (taxSen > 0) {
+    if (parts.length) {
+      const total = parts.reduce((s, p) => s + p.sen, 0);
+      let allocated = 0;
+      parts.forEach((p, i) => {
+        const share = i === parts.length - 1 ? taxSen - allocated : roundDiv(taxSen * p.sen, total);
+        allocated += share;
+        if (share > 0) taxLines.push({ label: p.label, amtSen: share });
+      });
+    } else {
+      taxLines.push({ label: 'SST & service', amtSen: taxSen });
+    }
+  }
+  return { lines, taxLines, claimedSen: claimed, taxSen, owedSen: owed };
+}
+
+function estimateOwed() {
+  return estimateBreakdown().owedSen;
+}
+
+function token() { return localStorage.getItem(TKEY); }
+
+async function api(path, { method = 'GET', body, auth = false } = {}) {
+  const h = {};
+  if (body) h['Content-Type'] = 'application/json';
+  if (auth && token()) h['Authorization'] = 'Bearer ' + token();
+  const r = await fetch('/api/splits/' + slug + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) throw new Error((await r.text()) || r.status);
+  return r.status === 204 ? null : r.json();
+}
+
+// recompute which items I've already claimed (after reload), by my stored name
+function syncSelectedFromServer() {
+  S.selected = new Set();
+  if (!S.me) return;
+  for (const it of S.items) if ((it.claimedBy || []).includes(S.me)) S.selected.add(it.id);
+}
+
+async function boot() {
+  if (!slug) return showError('Missing split link');
+  try {
+    const d = await api('');
+    absorbSplit(d);
+    if (token()) { syncSelectedFromServer(); try { S.share = await api('/share', { auth: true }); } catch (e) {} showPick(); }
+    else showLanding();
+  } catch (e) { showError('This split link is invalid or expired.'); }
+}
+
+// ---- screens ----
+function showError(msg) {
+  app.innerHTML = `<div class="pad" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px">
+    <div style="font:800 22px 'Bricolage Grotesque'">Hmm 🤔</div>
+    <div style="color:#6B5E50;font-size:14px">${esc(msg)}</div></div>`;
+}
+
+function showLanding() {
+  const sp = S.split;
+  app.innerHTML = `
+  <div style="padding:48px 28px 24px;text-align:center;background:linear-gradient(180deg,#FDEAE3,transparent)">
+    <div style="width:52px;height:52px;border-radius:50%;background:#F25C3B;color:#fff;display:flex;align-items:center;justify-content:center;font:700 19px 'Figtree';margin:0 auto 14px">${esc((sp.ownerName||'A').slice(0,1).toUpperCase())}</div>
+    <h1 style="font-size:24px;line-height:1.15">${esc(sp.ownerName||'Someone')} invited you<br>to split the bill</h1>
+    <div style="margin-top:18px;background:#fff;border:1px solid #F1EAE0;border-radius:18px;padding:16px;box-shadow:0 6px 18px rgba(34,27,20,.06)">
+      <div style="font:700 16px 'Bricolage Grotesque'">${esc(sp.merchant||'Receipt')}</div>
+      <div style="margin-top:6px;font-size:12px;color:#6B5E50">${S.items.length} items · Total ${rm(sp.totalSen)}</div>
+    </div>
+  </div>
+  <div class="pad" style="padding-bottom:28px">
+    <div style="font:600 13px 'Figtree';margin-bottom:8px">What's your name?</div>
+    <input id="name" placeholder="e.g. Sara" value="${esc(S.me)}" autocomplete="given-name"/>
+    <button class="btn" id="join" style="margin-top:14px">Join the split →</button>
+    <div style="text-align:center;font-size:11px;color:#A99B89;margin-top:13px">No app needed · pay by DuitNow QR</div>
+  </div>`;
+  const input = document.getElementById('name');
+  const btn = document.getElementById('join');
+  btn.onclick = async () => {
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    btn.disabled = true; btn.textContent = 'Joining…';
+    try {
+      const r = await api('/join', { method: 'POST', body: { name } });
+      localStorage.setItem(TKEY, r.token); localStorage.setItem(NKEY, name);
+      S.me = name;
+      absorbSplit(await api(''));
+      syncSelectedFromServer();
+      showPick();
+    } catch (e) { btn.disabled = false; btn.textContent = 'Join the split →'; alert('Could not join: ' + e.message); }
+  };
+}
+
+let claimsQueue = Promise.resolve();
+
+function queueClaims() {
+  claimsQueue = claimsQueue.then(async () => {
+    const ids = [...S.selected];
+    S.share = await api('/claims', { method: 'POST', auth: true, body: { itemIds: ids } });
+    absorbSplit(await api(''));
+    syncSelectedFromServer();
+    renderPick();
+  }).catch(e => {
+    syncSelectedFromServer();
+    renderPick();
+    alert('Could not update: ' + e.message);
+  });
+}
+
+function showPick() { renderPick(); }
+
+function renderPick() {
+  const brk = estimateBreakdown();
+  const owed = brk.owedSen;
+  const hasSelection = S.selected.size > 0;
+  const brkRow = (label, amt, muted) =>
+    `<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0${muted ? '' : ';border-bottom:1px solid #ECE3D6'}">
+      <span style="font:600 12px 'Figtree';color:${muted ? '#6B5E50' : '#221B14'};line-height:1.35">${esc(label)}</span>
+      <span style="font:700 12px 'Figtree';white-space:nowrap">${rm(amt)}</span>
+    </div>`;
+  const brkLines = brk.lines.map(l => brkRow(l.name, l.amtSen)).join('');
+  const brkTax = brk.taxLines.map(l => brkRow('Your part of ' + l.label, l.amtSen, true)).join('');
+  const brkPanel = hasSelection && showShareBreakdown ? `
+  <div style="padding:10px 22px 12px;background:#F6F1EA;border-bottom:1px solid #ECE3D6">
+    ${brkLines || brkRow('Items', 0, true)}
+    ${brkTax}
+    <div style="display:flex;justify-content:space-between;padding-top:9px;margin-top:2px;border-top:1.5px solid #E0D6C8">
+      <span style="font:700 12px 'Figtree'">Total</span>
+      <span style="font:800 13px 'Bricolage Grotesque'">${rm(owed)}</span>
+    </div>
+  </div>` : '';
+
+  const rows = S.items.map(it => {
+    const mine = S.selected.has(it.id);
+    const others = (it.claimedBy || []).filter(n => n !== S.me);
+    const claimants = mine ? Math.max(others.length + 1, 1) : Math.max(it.claimants, 1);
+    const shared = claimants > 1 || others.length > 0;
+    const tag = shared ? `<span style="background:#EAF6F1;color:#18A07A;font:700 10px 'Figtree';padding:3px 8px;border-radius:6px;margin-right:6px">SHARED ÷${claimants}</span>` : '';
+    const who = others.length ? `<div style="font-size:11px;color:#6B5E50;margin-top:2px">with ${esc(others.join(', '))}</div>` : '';
+    return `<div class="tap item" data-id="${it.id}" style="display:flex;align-items:center;gap:11px;background:#fff;border:${mine?'2px solid #F25C3B':'1.5px solid #F1EAE0'};border-radius:16px;padding:13px 14px;margin-bottom:10px;${mine?'box-shadow:0 4px 12px rgba(242,92,59,.12)':''}">
+      <div style="width:24px;height:24px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;${mine?'background:#F25C3B':'border:2px solid #DCD2C4'}">${mine?'<div style="width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg);margin-top:-2px"></div>':''}</div>
+      <div style="flex:1"><div style="font:700 14px 'Figtree'">${tag}${esc(it.name)}</div><div style="font-size:11px;color:#6B5E50">${rm(it.lineTotalSen)}${it.qty>1?' · '+it.qty+'×':''}</div>${who}</div>
+      ${mine?`<div style="font:700 12px 'Figtree';color:#F25C3B">You</div>`:''}
+    </div>`;
+  }).join('');
+
+  app.innerHTML = `
+  <div class="pad" style="padding-top:24px;padding-bottom:10px;background:#fff">
+    <h2 style="font-size:20px">Hi ${esc(S.me)} 👋</h2>
+    <div style="font-size:13px;color:#6B5E50;margin-top:2px">Tap the items you ordered</div>
+  </div>
+  <div style="flex:1;overflow:auto;padding:14px 18px;background:#F6F1EA">${rows || '<div style="color:#6B5E50;text-align:center;padding:40px">No items</div>'}</div>
+  <div style="background:#fff;border-top:1px solid #F1EAE0;box-shadow:0 -6px 18px rgba(34,27,20,.06)">
+    ${brkPanel}
+    <div style="padding:15px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <button id="brk-toggle" class="tap" style="flex:1;min-width:0;background:none;border:none;padding:0;text-align:left;cursor:pointer">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;color:#6B5E50">Your share</span>
+          ${hasSelection ? `<span style="font:600 10px 'Figtree';color:#A99B89;background:#F6F1EA;padding:2px 7px;border-radius:999px">${showShareBreakdown ? 'Hide' : 'Show'} breakdown</span>` : ''}
+        </div>
+        <div style="font:800 19px 'Bricolage Grotesque';margin-top:1px">${rm(owed)}</div>
+      </button>
+      <button class="btn" id="cont" style="width:auto;padding:13px 22px;border-radius:14px;box-shadow:none;flex:none">Continue →</button>
+    </div>
+  </div>`;
+
+  app.querySelectorAll('.item').forEach(el => el.onclick = () => {
+    const id = el.dataset.id;
+    if (S.selected.has(id)) S.selected.delete(id); else S.selected.add(id);
+    if (!S.selected.size) showShareBreakdown = false;
+    renderPick();
+    queueClaims();
+  });
+  const brkBtn = document.getElementById('brk-toggle');
+  if (brkBtn && hasSelection) brkBtn.onclick = () => { showShareBreakdown = !showShareBreakdown; renderPick(); };
+  document.getElementById('cont').onclick = async () => {
+    try { if (!S.share) S.share = await api('/share', { auth: true }); showShare(); } catch (e) { alert(e.message); }
+  };
+}
+
+function showShare() {
+  const sh = S.share;
+  const lines = (sh.lines || []).map(l =>
+    `<div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #ECE3D6"><span style="font:600 13px 'Figtree'">${esc(l.name)}</span><span style="font:700 13px 'Figtree'">${rm(l.amtSen)}</span></div>`).join('');
+  app.innerHTML = `
+  <div class="pad" style="padding-top:26px">
+    <h2 style="font-size:22px">Here's your share</h2>
+    <div style="font-size:13px;color:#6B5E50;margin-top:3px">Going to ${esc(sh.ownerName||'them')} · ${esc(sh.merchant||'')}</div>
+  </div>
+  <div class="pad" style="margin-top:14px">
+    <div style="background:#F6F1EA;border-radius:18px;padding:6px 14px">${lines}
+      <div style="display:flex;justify-content:space-between;padding:11px 0"><span style="font:600 13px 'Figtree';color:#6B5E50">Your part of SST &amp; service</span><span style="font:700 13px 'Figtree'">${rm(sh.taxSen)}</span></div>
+    </div>
+  </div>
+  <div class="pad" style="margin-top:10px"><div style="background:#18A07A;border-radius:20px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;color:#fff"><span style="font:700 14px 'Figtree';opacity:.85">You owe</span><span style="font:800 26px 'Bricolage Grotesque'">${rm(sh.owedSen)}</span></div></div>
+  <div style="flex:1"></div>
+  <div class="pad" style="padding-bottom:28px"><button class="btn" id="pay">Pay ${rm(sh.owedSen)} →</button></div>`;
+  document.getElementById('pay').onclick = showPay;
+}
+
+function showPay() {
+  const sh = S.share;
+  const qr = sh.ownerQrUrl
+    ? `<img src="${esc(sh.ownerQrUrl)}" alt="DuitNow QR" style="width:220px;height:220px;object-fit:contain;border-radius:12px"/>`
+    : `<div style="width:220px;height:220px;border-radius:12px;background:#F6F1EA;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;color:#6B5E50;padding:20px">${esc(sh.ownerName||'The owner')} hasn't added a DuitNow QR yet — pay them directly</div>`;
+  app.innerHTML = `
+  <div style="padding:26px 24px 4px;text-align:center"><div style="font-size:13px;color:#6B5E50">Pay ${esc(sh.ownerName||'')}</div><h1 style="font-size:31px;margin-top:2px">${rm(sh.owedSen)}</h1></div>
+  <div class="pad" style="margin-top:16px"><div style="background:#FBF7F2;border:1px solid #EFE6D8;border-radius:22px;padding:20px;text-align:center">
+    <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:14px"><div style="width:9px;height:9px;border-radius:50%;background:#F25C3B"></div><div style="font:800 13px 'Figtree';letter-spacing:.04em">DuitNow QR</div></div>
+    <div style="background:#fff;border-radius:16px;padding:16px;display:inline-flex;box-shadow:0 6px 16px rgba(34,27,20,.08)">${qr}</div>
+    <div style="font:700 13px 'Figtree';margin-top:14px">${esc((sh.ownerName||'').toUpperCase())}</div>
+    <div style="font-size:11px;color:#6B5E50;margin-top:2px">Scan with any bank or e-wallet app</div>
+  </div></div>
+  <div style="flex:1"></div>
+  <div class="pad" style="padding-bottom:28px"><button class="btn" id="paid" style="background:#18A07A;box-shadow:none">I've paid ✓</button></div>`;
+  document.getElementById('paid').onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = 'Saving…';
+    try { await api('/paid', { method: 'POST', auth: true, body: {} }); showDone(); }
+    catch (err) { e.target.disabled = false; e.target.textContent = "I've paid ✓"; alert(err.message); }
+  };
+}
+
+function showDone() {
+  const sh = S.share;
+  app.innerHTML = `
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px 30px;background:linear-gradient(180deg,#EAF6F1,transparent)">
+    <div style="width:88px;height:88px;border-radius:50%;background:#18A07A;display:flex;align-items:center;justify-content:center;margin-bottom:22px;box-shadow:0 12px 30px rgba(24,160,122,.35)"><div style="width:30px;height:17px;border-left:5px solid #fff;border-bottom:5px solid #fff;transform:rotate(-45deg);margin-top:-6px"></div></div>
+    <h1 style="font-size:26px">All done, ${esc(S.me)}!</h1>
+    <div style="font-size:14px;color:#6B5E50;margin-top:8px;line-height:1.5">You marked <b style="color:#221B14">${rm(sh.owedSen)}</b> as paid to ${esc(sh.ownerName||'them')}.<br>They'll get a notification to confirm.</div>
+  </div>`;
+}
+
+boot();
+</script>
+</body>
+</html>

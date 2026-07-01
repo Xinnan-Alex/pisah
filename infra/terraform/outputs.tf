@@ -1,0 +1,26 @@
+output "aws_region" {
+  value = var.aws_region
+}
+
+output "ecr_repository_url" {
+  description = "Push the backend image here"
+  value       = aws_ecr_repository.app.repository_url
+}
+
+output "alb_dns_name" {
+  description = "ALB hostname (use over http:// until a domain/TLS is configured)"
+  value       = aws_lb.app.dns_name
+}
+
+output "app_url" {
+  description = "Public base URL of the backend"
+  value       = local.tls ? "https://${var.domain_name}" : "http://${aws_lb.app.dns_name}"
+}
+
+output "cluster_name" {
+  value = aws_ecs_cluster.app.name
+}
+
+output "service_name" {
+  value = aws_ecs_service.app.name
+}

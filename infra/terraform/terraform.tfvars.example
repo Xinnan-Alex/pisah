@@ -1,0 +1,16 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+
+# Supabase SESSION-pooler string with your DB password (Dashboard → Settings →
+# Database → Connection string → Session pooler, port 5432).
+database_url = "postgresql://postgres.zqvkqcphgncaelrlvcbs:YOUR_DB_PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+
+supabase_url = "https://zqvkqcphgncaelrlvcbs.supabase.co"
+
+# --- HTTPS (recommended for the iOS app) ---
+# Set both to get an ACM cert + HTTPS on the ALB and a DNS record for the domain.
+# Leave blank to start with HTTP on the ALB DNS name (testing only).
+# domain_name     = "api.yourdomain.com"
+# route53_zone_id = "Z0123456789ABCDEFGHIJ"
+
+# With no domain: apply once, grab alb_dns_name, then set and re-apply:
+# public_base_url = "http://pisah-alb-xxxx.ap-southeast-1.elb.amazonaws.com"
