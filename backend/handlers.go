@@ -112,6 +112,11 @@ func (s *Server) handleCreateSplit(w http.ResponseWriter, r *http.Request) {
 			in.OwnerName = n
 		}
 	}
+	if in.OwnerQRURL == nil || *in.OwnerQRURL == "" {
+		if prof, err := s.store.GetOwnerProfile(r.Context(), ownerID); err == nil {
+			in.OwnerQRURL = prof.OwnerQRURL
+		}
+	}
 
 	// Retry slug collisions a few times (4-char space is small but slugs are sparse).
 	var split Split
@@ -265,13 +270,18 @@ func (s *Server) writeShareResponse(w http.ResponseWriter, r *http.Request, spli
 	}
 	taxSen := me.OwedSen - claimedSen // owed already includes proportional tax
 
+	qrURL := s.ownerQRForSplit(r.Context(), split)
+	prof, _ := s.store.GetOwnerProfile(r.Context(), split.OwnerID)
+	autoFill := prof.AutoFillAmount
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"merchant":   split.Merchant,
-		"ownerName":  split.OwnerName,
-		"ownerQrUrl": split.OwnerQRURL,
-		"lines":      lines,
-		"taxSen":     taxSen,
-		"owedSen":    me.OwedSen,
+		"merchant":       split.Merchant,
+		"ownerName":      split.OwnerName,
+		"ownerQrUrl":     qrURL,
+		"autoFillAmount": autoFill,
+		"lines":          lines,
+		"taxSen":         taxSen,
+		"owedSen":        me.OwedSen,
 	})
 }
 
@@ -390,4 +400,54 @@ func ownerDisplayName(claims jwt.MapClaims, fallback string) string {
 		}
 	}
 	return strings.TrimSpace(fallback)
+}
+
+// GET /api/me/payment-settings  (owner) — DuitNow QR URL + preferences.
+func (s *Server) handleGetPaymentSettings(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	prof, err := s.store.GetOwnerProfile(r.Context(), ownerID)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load payment settings", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, prof)
+}
+
+// PUT /api/me/payment-settings  (owner) — update preferences.
+func (s *Server) handleUpdatePaymentSettings(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	var body struct {
+		AutoFillAmount *bool `json:"autoFillAmount"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.AutoFillAmount == nil {
+		writeErr(w, http.StatusBadRequest, "autoFillAmount is required")
+		return
+	}
+	prof, err := s.store.SetAutoFillAmount(r.Context(), ownerID, *body.AutoFillAmount)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not save payment settings", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, prof)
+}
+
+// POST /api/me/duitnow-qr  (owner) — upload a DuitNow QR image (JPEG/PNG).
+func (s *Server) handleUploadDuitNowQR(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	img, err := io.ReadAll(io.LimitReader(r.Body, maxReceiptBytes))
+	if err != nil || len(img) == 0 {
+		writeErr(w, http.StatusBadRequest, "empty or unreadable image body")
+		return
+	}
+	qrURL, err := uploadDuitNowQR(r.Context(), s.cfg, ownerID, img)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusBadGateway, "could not upload qr", err)
+		return
+	}
+	prof, err := s.store.SetOwnerQRURL(r.Context(), ownerID, qrURL)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not save qr url", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, prof)
 }

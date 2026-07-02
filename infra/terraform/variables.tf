@@ -48,16 +48,17 @@ variable "public_base_url" {
   default = ""
 }
 
-# Optional custom domain + Route53 hosted zone → enables HTTPS (ACM) on the ALB.
-# Without these the ALB serves HTTP only (fine for testing; iOS needs HTTPS for prod).
+# Custom domain → enables HTTPS (ACM) on the ALB. DNS can live in Cloudflare or
+# Route53; set route53_zone_id only if AWS should manage validation + alias records.
 variable "domain_name" {
   type    = string
   default = ""
 }
 
 variable "route53_zone_id" {
-  type    = string
-  default = ""
+  type        = string
+  default     = ""
+  description = "Optional Route53 hosted zone. Leave empty when DNS is in Cloudflare."
 }
 
 variable "desired_count" {

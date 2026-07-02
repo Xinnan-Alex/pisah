@@ -183,9 +183,17 @@ struct FriendPayView: View {
         VStack(spacing: 0) {
             FauxBrowserBar()
             VStack(spacing: 2) {
-                Text("Pay Aiman").font(F.t(13, .medium)).foregroundColor(P.brown)
+                Text("Pay \(s.serverOwnerName ?? "them")").font(F.t(13, .medium)).foregroundColor(P.brown)
                 Text(s.yourShareStr).font(F.d(31)).foregroundColor(P.ink)
             }.padding(.top, 22)
+
+            if s.shareAutoFillAmount {
+                Text("Transfer exactly \(s.yourShareStr)")
+                    .font(F.t(12, .semibold)).foregroundColor(P.orange)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(P.peach).clipShape(Capsule())
+                    .padding(.top, 10)
+            }
 
             VStack(spacing: 0) {
                 HStack(spacing: 7) {
@@ -194,13 +202,19 @@ struct FriendPayView: View {
                 }.padding(.bottom, 14)
                 Group {
                     if let url = s.ownerQrURL {
-                        AsyncImage(url: url) { $0.resizable().scaledToFit() } placeholder: { QRView(seed: 7, cell: 5) }
-                            .frame(width: 125, height: 125)
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let img): img.resizable().scaledToFit()
+                            default: qrMissing
+                            }
+                        }.frame(width: 125, height: 125)
                     } else {
-                        QRView(seed: 7, cell: 5) // owner hasn't uploaded a DuitNow QR — faux placeholder
+                        qrMissing
                     }
                 }.padding(16).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 16)).shadow(color: P.ink.opacity(0.08), radius: 8, y: 6)
-                Text("AIMAN BIN ABDULLAH").font(F.t(13, .bold)).foregroundColor(P.ink).padding(.top, 14)
+                if let owner = s.serverOwnerName {
+                    Text(owner.uppercased()).font(F.t(13, .bold)).foregroundColor(P.ink).padding(.top, 14)
+                }
                 Text("Scan with any bank or e-wallet app").font(F.t(11, .medium)).foregroundColor(P.brown).padding(.top, 2)
             }.padding(20).frame(maxWidth: .infinity).background(P.paper).overlay(RoundedRectangle(cornerRadius: 22).stroke(Color(hex: 0xEFE6D8))).clipShape(RoundedRectangle(cornerRadius: 22)).padding(.horizontal, 24).padding(.top, 16)
 
@@ -209,9 +223,19 @@ struct FriendPayView: View {
                 Button { s.pay() } label: {
                     Text("I've paid ✓").font(F.t(15, .bold)).foregroundColor(.white).frame(maxWidth: .infinity).padding(15).background(P.green).clipShape(RoundedRectangle(cornerRadius: 16))
                 }.buttonStyle(.plain)
-                Text("Save QR to gallery").font(F.t(13, .bold)).foregroundColor(P.brown)
+                if s.ownerQrURL != nil {
+                    Text("Save QR to gallery").font(F.t(13, .bold)).foregroundColor(P.brown)
+                }
             }.padding(.horizontal, 24).padding(.bottom, 24)
         }
+    }
+
+    private var qrMissing: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "qrcode").font(.system(size: 28)).foregroundColor(P.mut)
+            Text("No QR yet").font(F.t(11, .semibold)).foregroundColor(P.brown)
+                .multilineTextAlignment(.center)
+        }.frame(width: 125, height: 125)
     }
 }
 

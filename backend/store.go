@@ -327,6 +327,49 @@ func (st *Store) Participants(ctx context.Context, splitID string) ([]Participan
 	return out, rows.Err()
 }
 
+type OwnerProfile struct {
+	OwnerQRURL     *string `json:"ownerQrUrl"`
+	AutoFillAmount bool    `json:"autoFillAmount"`
+}
+
+func (st *Store) GetOwnerProfile(ctx context.Context, ownerID string) (OwnerProfile, error) {
+	var p OwnerProfile
+	err := st.pool.QueryRow(ctx, `
+		select owner_qr_url, auto_fill_amount
+		from owner_profiles where owner_id = $1`, ownerID,
+	).Scan(&p.OwnerQRURL, &p.AutoFillAmount)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return OwnerProfile{AutoFillAmount: true}, nil
+	}
+	return p, err
+}
+
+func (st *Store) SetOwnerQRURL(ctx context.Context, ownerID, qrURL string) (OwnerProfile, error) {
+	var p OwnerProfile
+	err := st.pool.QueryRow(ctx, `
+		insert into owner_profiles (owner_id, owner_qr_url)
+		values ($1, $2)
+		on conflict (owner_id) do update set
+			owner_qr_url = excluded.owner_qr_url,
+			updated_at = now()
+		returning owner_qr_url, auto_fill_amount`, ownerID, qrURL,
+	).Scan(&p.OwnerQRURL, &p.AutoFillAmount)
+	return p, err
+}
+
+func (st *Store) SetAutoFillAmount(ctx context.Context, ownerID string, autoFill bool) (OwnerProfile, error) {
+	var p OwnerProfile
+	err := st.pool.QueryRow(ctx, `
+		insert into owner_profiles (owner_id, auto_fill_amount)
+		values ($1, $2)
+		on conflict (owner_id) do update set
+			auto_fill_amount = excluded.auto_fill_amount,
+			updated_at = now()
+		returning owner_qr_url, auto_fill_amount`, ownerID, autoFill,
+	).Scan(&p.OwnerQRURL, &p.AutoFillAmount)
+	return p, err
+}
+
 // CollectedSen sums what paid participants have settled.
 func (st *Store) CollectedSen(ctx context.Context, splitID string) (int64, error) {
 	var sum int64

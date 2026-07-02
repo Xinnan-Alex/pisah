@@ -11,10 +11,11 @@ supabase_publishable_key = "sb_publishable_..."
 # supabase_secret_key    = "sb_secret_..."  # optional; backend uses direct Postgres today
 
 # --- HTTPS (recommended for the iOS app) ---
-# Set both to get an ACM cert + HTTPS on the ALB and a DNS record for the domain.
-# Leave blank to start with HTTP on the ALB DNS name (testing only).
+# Set domain_name + point a CNAME in Cloudflare to alb_dns_name (DNS only).
+# terraform apply outputs acm_validation_records — add that CNAME in Cloudflare, then re-apply.
 # domain_name     = "api.yourdomain.com"
-# route53_zone_id = "Z0123456789ABCDEFGHIJ"
+# public_base_url = "https://api.yourdomain.com"
+# route53_zone_id = "Z0123456789ABCDEFGHIJ"  # optional; omit when using Cloudflare DNS
 
 # With no domain: apply once, grab alb_dns_name, then set and re-apply:
 # public_base_url = "http://pisah-alb-xxxx.ap-southeast-1.elb.amazonaws.com"
