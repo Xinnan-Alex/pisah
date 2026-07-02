@@ -17,7 +17,7 @@ var authHTTP = &http.Client{Timeout: 15 * time.Second}
 
 // POST /api/auth/sign-in  (public) — proxy Supabase GoTrue password grant.
 func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.SupabaseURL == "" || s.cfg.SupabaseAnonKey == "" {
+	if s.cfg.SupabaseURL == "" || s.cfg.SupabasePublishableKey == "" {
 		writeErr(w, http.StatusNotImplemented, "auth not configured")
 		return
 	}
@@ -41,7 +41,7 @@ func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("apikey", s.cfg.SupabaseAnonKey)
+	req.Header.Set("apikey", s.cfg.SupabasePublishableKey)
 	resp, err := authHTTP.Do(req)
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusBadGateway, "auth service unreachable", err)

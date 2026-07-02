@@ -1,0 +1,7 @@
+# CI / release image: expects a pre-built linux/arm64 binary at ./pisah
+# (cross-compiled on the GitHub Actions runner — no compile step in Docker).
+FROM gcr.io/distroless/static-debian12
+COPY pisah /pisah
+ENV PORT=8080
+EXPOSE 8080
+ENTRYPOINT ["/pisah"]

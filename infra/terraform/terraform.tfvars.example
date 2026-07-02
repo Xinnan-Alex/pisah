@@ -6,6 +6,10 @@ database_url = "postgresql://postgres.zqvkqcphgncaelrlvcbs:YOUR_DB_PASSWORD@aws-
 
 supabase_url = "https://zqvkqcphgncaelrlvcbs.supabase.co"
 
+# Settings → API Keys → Publishable and secret API keys (create new keys if needed)
+supabase_publishable_key = "sb_publishable_..."
+# supabase_secret_key    = "sb_secret_..."  # optional; backend uses direct Postgres today
+
 # --- HTTPS (recommended for the iOS app) ---
 # Set both to get an ACM cert + HTTPS on the ALB and a DNS record for the domain.
 # Leave blank to start with HTTP on the ALB DNS name (testing only).
@@ -14,3 +18,8 @@ supabase_url = "https://zqvkqcphgncaelrlvcbs.supabase.co"
 
 # With no domain: apply once, grab alb_dns_name, then set and re-apply:
 # public_base_url = "http://pisah-alb-xxxx.ap-southeast-1.elb.amazonaws.com"
+
+# GitHub Actions OIDC (output: github_actions_role_arn → workflow AWS_ROLE_ARN)
+# github_repository         = "Xinnan-Alex/pisah"
+# github_deploy_branch      = "main"
+# create_github_oidc_provider = false  # if OIDC provider already exists in the account
