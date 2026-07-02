@@ -24,3 +24,8 @@ output "cluster_name" {
 output "service_name" {
   value = aws_ecs_service.app.name
 }
+
+output "github_actions_role_arn" {
+  description = "Set as AWS_ROLE_ARN in .github/workflows/deploy-backend.yml (or a GitHub repo variable)."
+  value       = aws_iam_role.github_actions.arn
+}

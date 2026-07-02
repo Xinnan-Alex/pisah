@@ -41,7 +41,7 @@ Backend: `http://localhost:8080` · friend page: `http://localhost:8080/r/<slug>
 Seeded automatically on `supabase db reset` via `supabase/seed.sql`.
 
 **iOS (simulator):** the **Pisah** scheme injects `PISAH_API`, `SUPABASE_URL`,
-`SUPABASE_ANON_KEY` for local — just ⌘R in Xcode. Toggle those env vars off in the
+`SUPABASE_PUBLISHABLE_KEY` for local — just ⌘R in Xcode. Toggle those env vars off in the
 scheme to run the offline prototype.
 
 **iOS (physical device):** scheme env vars are only passed when Xcode's debugger
@@ -76,7 +76,7 @@ supabase db push
 Then configure the backend for prod from `backend/.env.prod.example`
 (`DATABASE_URL` pooler string, `SUPABASE_URL`, `PUBLIC_BASE_URL`, AWS keys) and
 deploy it. Point the iOS app at prod by duplicating the **Pisah** scheme and
-setting `PISAH_API` / `SUPABASE_URL` / `SUPABASE_ANON_KEY` to the prod values.
+setting `PISAH_API` / `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` to the prod values.
 
 ---
 

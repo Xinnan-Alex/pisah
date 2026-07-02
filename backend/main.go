@@ -23,22 +23,24 @@ import (
 var friendHTML []byte
 
 type Config struct {
-	Port            string
-	DatabaseURL     string
-	SupabaseURL     string // project URL, e.g. https://abc.supabase.co — for JWKS (ES256)
-	SupabaseAnonKey string // anon key — proxies owner sign-in to GoTrue
-	JWTSecret       string // legacy HS256 shared secret (optional)
-	PublicBaseURL   string // e.g. https://split.my  — used to build share links
+	Port                   string
+	DatabaseURL            string
+	SupabaseURL            string // project URL, e.g. https://abc.supabase.co — for JWKS (ES256)
+	SupabasePublishableKey string // sb_publishable_... — GoTrue sign-in proxy (apikey header)
+	SupabaseSecretKey      string // sb_secret_... — optional; server-side Supabase API (unused today)
+	JWTSecret              string // legacy HS256 shared secret (optional)
+	PublicBaseURL          string // e.g. https://split.my  — used to build share links
 }
 
 func loadConfig() (Config, error) {
 	c := Config{
-		Port:            envOr("PORT", "8080"),
-		DatabaseURL:     os.Getenv("DATABASE_URL"),
-		SupabaseURL:     os.Getenv("SUPABASE_URL"),
-		SupabaseAnonKey: os.Getenv("SUPABASE_ANON_KEY"),
-		JWTSecret:       os.Getenv("SUPABASE_JWT_SECRET"),
-		PublicBaseURL:   envOr("PUBLIC_BASE_URL", "https://split.my"),
+		Port:                   envOr("PORT", "8080"),
+		DatabaseURL:            os.Getenv("DATABASE_URL"),
+		SupabaseURL:            os.Getenv("SUPABASE_URL"),
+		SupabasePublishableKey: envFirst("SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY"),
+		SupabaseSecretKey:      os.Getenv("SUPABASE_SECRET_KEY"),
+		JWTSecret:              os.Getenv("SUPABASE_JWT_SECRET"),
+		PublicBaseURL:          envOr("PUBLIC_BASE_URL", "https://split.my"),
 	}
 	if c.DatabaseURL == "" {
 		return c, errors.New("DATABASE_URL is required")
@@ -54,6 +56,15 @@ func envOr(k, def string) string {
 		return v
 	}
 	return def
+}
+
+func envFirst(keys ...string) string {
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 type Server struct {
@@ -99,7 +110,7 @@ func main() {
 		"port", cfg.Port,
 		"public_base_url", cfg.PublicBaseURL,
 		"jwks_enabled", cfg.SupabaseURL != "",
-		"auth_proxy_enabled", cfg.SupabaseURL != "" && cfg.SupabaseAnonKey != "",
+		"auth_proxy_enabled", cfg.SupabaseURL != "" && cfg.SupabasePublishableKey != "",
 	)
 	if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server stopped", "error", err)

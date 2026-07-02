@@ -1,6 +1,21 @@
 locals {
   tls             = var.domain_name != "" && var.route53_zone_id != ""
   public_base_url = var.public_base_url != "" ? var.public_base_url : (local.tls ? "https://${var.domain_name}" : "")
+
+  container_secrets = concat(
+    [
+      { name = "DATABASE_URL", valueFrom = aws_ssm_parameter.database_url.arn },
+      { name = "SUPABASE_PUBLISHABLE_KEY", valueFrom = aws_ssm_parameter.supabase_publishable_key.arn },
+    ],
+    var.supabase_secret_key != "" ? [
+      { name = "SUPABASE_SECRET_KEY", valueFrom = aws_ssm_parameter.supabase_secret_key[0].arn },
+    ] : [],
+  )
+
+  ssm_secret_arns = concat(
+    [aws_ssm_parameter.database_url.arn, aws_ssm_parameter.supabase_publishable_key.arn],
+    [for p in aws_ssm_parameter.supabase_secret_key : p.arn],
+  )
 }
 
 # ---- networking: reuse the default VPC + public subnets (no NAT cost) ----
@@ -36,6 +51,20 @@ resource "aws_ssm_parameter" "database_url" {
   value = var.database_url
 }
 
+resource "aws_ssm_parameter" "supabase_publishable_key" {
+  name  = "/${var.app_name}/SUPABASE_PUBLISHABLE_KEY"
+  type  = "SecureString"
+  value = var.supabase_publishable_key
+}
+
+resource "aws_ssm_parameter" "supabase_secret_key" {
+  count = var.supabase_secret_key != "" ? 1 : 0
+
+  name  = "/${var.app_name}/SUPABASE_SECRET_KEY"
+  type  = "SecureString"
+  value = var.supabase_secret_key
+}
+
 # ---- IAM ----
 data "aws_iam_policy_document" "assume" {
   statement {
@@ -67,7 +96,7 @@ resource "aws_iam_role_policy" "exec_secrets" {
       {
         Effect   = "Allow"
         Action   = ["ssm:GetParameters"]
-        Resource = [aws_ssm_parameter.database_url.arn]
+        Resource = local.ssm_secret_arns
       },
       {
         Effect   = "Allow"
@@ -300,9 +329,7 @@ resource "aws_ecs_task_definition" "app" {
       { name = "PUBLIC_BASE_URL", value = local.public_base_url },
       { name = "AWS_REGION", value = var.aws_region },
     ]
-    secrets = [
-      { name = "DATABASE_URL", valueFrom = aws_ssm_parameter.database_url.arn },
-    ]
+    secrets = local.container_secrets
     logConfiguration = {
       logDriver = "awslogs"
       options = {
