@@ -124,8 +124,25 @@ final class AppState: ObservableObject {
         return a
     }
 
-    var shareURLStr: String { slug.map { "split.my/r/\($0)" } ?? "split.my/r/8fK2" }   // for display
-    var shareLink: String { shareURL ?? "https://\(shareURLStr)" }                      // for copy/share
+    var shareURLStr: String {
+        if let shareURL { return Self.displayShareURL(shareURL) }
+        if let slug { return Self.displaySharePath(slug: slug) }
+        return Self.displaySharePath(slug: "demo")
+    }
+    var shareLink: String { shareURL ?? "https://\(shareURLStr)" }
+
+    private static func displayShareURL(_ url: String) -> String {
+        url.replacingOccurrences(of: "https://", with: "")
+            .replacingOccurrences(of: "http://", with: "")
+    }
+
+    private static func displaySharePath(slug: String) -> String {
+        if let base = Config.apiBaseURL, var host = base.host {
+            if let port = base.port { host = "\(host):\(port)" }
+            return "\(host)/r/\(slug)"
+        }
+        return "pisah.app/r/\(slug)"
+    }
     var shareMessage: String { "Split the bill with me on Pisah 👉 \(shareLink)" }
 
     var collectedStr: String { collectedSenServer.map(rmSen) ?? rm(collected) }
@@ -187,6 +204,7 @@ final class AppState: ObservableObject {
         Task {
             do {
                 try await client.signIn(email: email.trimmingCharacters(in: .whitespaces), password: password)
+                if let n = await client.ownerDisplayName() { name = n }
                 password = ""
                 go(.capture)
             } catch { fail(error) }
@@ -201,6 +219,7 @@ final class AppState: ObservableObject {
         Task {
             do {
                 try await client.signInWithGoogle()
+                if let n = await client.ownerDisplayName() { name = n }
                 go(.capture)
             } catch { fail(error) }
             authBusy = false
@@ -369,12 +388,14 @@ struct AppBackground: View {
 
 // Faux mobile-browser bar shown on the friend (web link) screens.
 struct FauxBrowserBar: View {
+    @EnvironmentObject var s: AppState
+
     var body: some View {
         HStack(spacing: 9) {
             HStack(spacing: 5) { ForEach(0..<3, id: \.self) { _ in Circle().fill(Color(hex: 0xD8CDBC)).frame(width: 9, height: 9) } }
             HStack(spacing: 7) {
                 Image(systemName: "lock.fill").font(.system(size: 9)).foregroundColor(P.green)
-                Text("split.my/r/8fK2").font(F.t(12, .medium)).foregroundColor(P.brown)
+                Text(s.shareURLStr).font(F.t(12, .medium)).foregroundColor(P.brown)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12).padding(.vertical, 7)

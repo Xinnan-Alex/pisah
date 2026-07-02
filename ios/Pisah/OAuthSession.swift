@@ -19,6 +19,31 @@ enum OAuthCallback {
     }
 }
 
+enum JWTClaims {
+    static func displayName(from jwt: String) -> String? {
+        let parts = jwt.split(separator: ".")
+        guard parts.count >= 2 else { return nil }
+        var payload = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while payload.count % 4 != 0 { payload += "=" }
+        guard let data = Data(base64Encoded: payload),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        if let meta = json["user_metadata"] as? [String: Any] {
+            for key in ["full_name", "name"] {
+                if let n = meta[key] as? String {
+                    let trimmed = n.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty { return trimmed }
+                }
+            }
+        }
+        if let email = json["email"] as? String, let at = email.firstIndex(of: "@") {
+            return String(email[..<at])
+        }
+        return nil
+    }
+}
+
 /// Opens Supabase Google OAuth in ASWebAuthenticationSession; returns on deep-link callback.
 @MainActor
 final class OAuthSession: NSObject, ASWebAuthenticationPresentationContextProviding {

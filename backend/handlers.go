@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 const maxReceiptBytes = 12 << 20 // 12 MB
@@ -104,6 +106,11 @@ func (s *Server) handleCreateSplit(w http.ResponseWriter, r *http.Request) {
 	if in.TotalSen <= 0 || len(in.Items) == 0 {
 		writeErr(w, http.StatusBadRequest, "split needs items and a positive total")
 		return
+	}
+	if claims, ok := r.Context().Value(ctxOwnerClaims).(jwt.MapClaims); ok {
+		if n := ownerDisplayName(claims, in.OwnerName); n != "" {
+			in.OwnerName = n
+		}
 	}
 
 	// Retry slug collisions a few times (4-char space is small but slugs are sparse).
@@ -364,4 +371,23 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+// ownerDisplayName prefers the signed-in user's profile name over a client placeholder.
+func ownerDisplayName(claims jwt.MapClaims, fallback string) string {
+	if meta, ok := claims["user_metadata"].(map[string]any); ok {
+		for _, key := range []string{"full_name", "name"} {
+			if v, ok := meta[key].(string); ok {
+				if n := strings.TrimSpace(v); n != "" {
+					return n
+				}
+			}
+		}
+	}
+	if v, ok := claims["email"].(string); ok {
+		if at := strings.Index(v, "@"); at > 0 {
+			return v[:at]
+		}
+	}
+	return strings.TrimSpace(fallback)
 }
