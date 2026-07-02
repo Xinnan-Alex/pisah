@@ -172,8 +172,9 @@
 				DEVELOPMENT_TEAM = S6S2RD2YCP;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Scan your receipt to split the bill.";
+				INFOPLIST_FILE = PisahOAuth-Info.plist;
 				INFOPLIST_KEY_NSAppTransportSecurity = "{NSAllowsLocalNetworking = YES;}";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Scan your receipt to split the bill.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Pick a receipt photo to split the bill.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -199,6 +200,7 @@
 				DEVELOPMENT_TEAM = S6S2RD2YCP;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PisahOAuth-Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scan your receipt to split the bill.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Pick a receipt photo to split the bill.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

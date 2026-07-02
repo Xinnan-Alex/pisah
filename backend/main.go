@@ -131,6 +131,7 @@ func (s *Server) routes() http.Handler {
 
 	// Owner sign-in (proxies GoTrue so the iOS app only needs the backend URL on device).
 	mux.HandleFunc("POST /api/auth/sign-in", s.handleSignIn)
+	mux.HandleFunc("GET /api/auth/oauth/google", s.handleGoogleOAuthStart)
 
 	// Owner (Supabase-authenticated).
 	mux.Handle("POST /api/receipts/scan", s.requireOwner(s.handleScan))
