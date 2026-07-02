@@ -48,6 +48,16 @@ function absorbSplit(d) {
   if (d.taxTotalSen != null) S.taxTotalSen = d.taxTotalSen;
 }
 
+function absorbShare(d) {
+  S.share = d;
+  if (S.share && !S.share.ownerName && S.split?.ownerName) S.share.ownerName = S.split.ownerName;
+}
+
+function ownerName() {
+  const n = (S.share?.ownerName || S.split?.ownerName || '').trim();
+  return n || 'the person who shared';
+}
+
 // Mirrors backend/share — integer sen, round half-up per division.
 function roundDiv(a, b) {
   if (b <= 0) return 0;
@@ -123,7 +133,7 @@ async function boot() {
   try {
     const d = await api('');
     absorbSplit(d);
-    if (token()) { syncSelectedFromServer(); try { S.share = await api('/share', { auth: true }); } catch (e) {} showPick(); }
+    if (token()) { syncSelectedFromServer(); try { absorbShare(await api('/share', { auth: true })); } catch (e) {} showPick(); }
     else showLanding();
   } catch (e) { showError('This split link is invalid or expired.'); }
 }
@@ -139,8 +149,8 @@ function showLanding() {
   const sp = S.split;
   app.innerHTML = `
   <div style="padding:48px 28px 24px;text-align:center;background:linear-gradient(180deg,#FDEAE3,transparent)">
-    <div style="width:52px;height:52px;border-radius:50%;background:#F25C3B;color:#fff;display:flex;align-items:center;justify-content:center;font:700 19px 'Figtree';margin:0 auto 14px">${esc((sp.ownerName||'A').slice(0,1).toUpperCase())}</div>
-    <h1 style="font-size:24px;line-height:1.15">${esc(sp.ownerName||'Someone')} invited you<br>to split the bill</h1>
+    <div style="width:52px;height:52px;border-radius:50%;background:#F25C3B;color:#fff;display:flex;align-items:center;justify-content:center;font:700 19px 'Figtree';margin:0 auto 14px">${esc(ownerName().slice(0,1).toUpperCase())}</div>
+    <h1 style="font-size:24px;line-height:1.15">${esc(ownerName())} invited you<br>to split the bill</h1>
     <div style="margin-top:18px;background:#fff;border:1px solid #F1EAE0;border-radius:18px;padding:16px;box-shadow:0 6px 18px rgba(34,27,20,.06)">
       <div style="font:700 16px 'Bricolage Grotesque'">${esc(sp.merchant||'Receipt')}</div>
       <div style="margin-top:6px;font-size:12px;color:#6B5E50">${S.items.length} items · Total ${rm(sp.totalSen)}</div>
@@ -175,6 +185,7 @@ function queueClaims() {
   claimsQueue = claimsQueue.then(async () => {
     const ids = [...S.selected];
     S.share = await api('/claims', { method: 'POST', auth: true, body: { itemIds: ids } });
+    absorbShare(S.share);
     absorbSplit(await api(''));
     syncSelectedFromServer();
     renderPick();
@@ -252,18 +263,19 @@ function renderPick() {
   const brkBtn = document.getElementById('brk-toggle');
   if (brkBtn && hasSelection) brkBtn.onclick = () => { showShareBreakdown = !showShareBreakdown; renderPick(); };
   document.getElementById('cont').onclick = async () => {
-    try { if (!S.share) S.share = await api('/share', { auth: true }); showShare(); } catch (e) { alert(e.message); }
+    try { if (!S.share) absorbShare(await api('/share', { auth: true })); showShare(); } catch (e) { alert(e.message); }
   };
 }
 
 function showShare() {
   const sh = S.share;
+  const payee = ownerName();
   const lines = (sh.lines || []).map(l =>
     `<div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #ECE3D6"><span style="font:600 13px 'Figtree'">${esc(l.name)}</span><span style="font:700 13px 'Figtree'">${rm(l.amtSen)}</span></div>`).join('');
   app.innerHTML = `
   <div class="pad" style="padding-top:26px">
     <h2 style="font-size:22px">Here's your share</h2>
-    <div style="font-size:13px;color:#6B5E50;margin-top:3px">Going to ${esc(sh.ownerName||'them')} · ${esc(sh.merchant||'')}</div>
+    <div style="font-size:13px;color:#6B5E50;margin-top:3px">Going to ${esc(payee)} · ${esc(sh.merchant||'')}</div>
   </div>
   <div class="pad" style="margin-top:14px">
     <div style="background:#F6F1EA;border-radius:18px;padding:6px 14px">${lines}
@@ -278,15 +290,16 @@ function showShare() {
 
 function showPay() {
   const sh = S.share;
+  const payee = ownerName();
   const qr = sh.ownerQrUrl
     ? `<img src="${esc(sh.ownerQrUrl)}" alt="DuitNow QR" style="width:220px;height:220px;object-fit:contain;border-radius:12px"/>`
-    : `<div style="width:220px;height:220px;border-radius:12px;background:#F6F1EA;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;color:#6B5E50;padding:20px">${esc(sh.ownerName||'The owner')} hasn't added a DuitNow QR yet — pay them directly</div>`;
+    : `<div style="width:220px;height:220px;border-radius:12px;background:#F6F1EA;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;color:#6B5E50;padding:20px">${esc(payee)} hasn't added a DuitNow QR yet — pay them directly</div>`;
   app.innerHTML = `
-  <div style="padding:26px 24px 4px;text-align:center"><div style="font-size:13px;color:#6B5E50">Pay ${esc(sh.ownerName||'')}</div><h1 style="font-size:31px;margin-top:2px">${rm(sh.owedSen)}</h1></div>
+  <div style="padding:26px 24px 4px;text-align:center"><div style="font-size:13px;color:#6B5E50">Pay ${esc(payee)}</div><h1 style="font-size:31px;margin-top:2px">${rm(sh.owedSen)}</h1></div>
   <div class="pad" style="margin-top:16px"><div style="background:#FBF7F2;border:1px solid #EFE6D8;border-radius:22px;padding:20px;text-align:center">
     <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:14px"><div style="width:9px;height:9px;border-radius:50%;background:#F25C3B"></div><div style="font:800 13px 'Figtree';letter-spacing:.04em">DuitNow QR</div></div>
     <div style="background:#fff;border-radius:16px;padding:16px;display:inline-flex;box-shadow:0 6px 16px rgba(34,27,20,.08)">${qr}</div>
-    <div style="font:700 13px 'Figtree';margin-top:14px">${esc((sh.ownerName||'').toUpperCase())}</div>
+    <div style="font:700 13px 'Figtree';margin-top:14px">${esc(payee.toUpperCase())}</div>
     <div style="font-size:11px;color:#6B5E50;margin-top:2px">Scan with any bank or e-wallet app</div>
   </div></div>
   <div style="flex:1"></div>
@@ -304,7 +317,7 @@ function showDone() {
   <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px 30px;background:linear-gradient(180deg,#EAF6F1,transparent)">
     <div style="width:88px;height:88px;border-radius:50%;background:#18A07A;display:flex;align-items:center;justify-content:center;margin-bottom:22px;box-shadow:0 12px 30px rgba(24,160,122,.35)"><div style="width:30px;height:17px;border-left:5px solid #fff;border-bottom:5px solid #fff;transform:rotate(-45deg);margin-top:-6px"></div></div>
     <h1 style="font-size:26px">All done, ${esc(S.me)}!</h1>
-    <div style="font-size:14px;color:#6B5E50;margin-top:8px;line-height:1.5">You marked <b style="color:#221B14">${rm(sh.owedSen)}</b> as paid to ${esc(sh.ownerName||'them')}.<br>They'll get a notification to confirm.</div>
+    <div style="font-size:14px;color:#6B5E50;margin-top:8px;line-height:1.5">You marked <b style="color:#221B14">${rm(sh.owedSen)}</b> as paid to ${esc(ownerName())}.<br>They'll get a notification to confirm.</div>
   </div>`;
 }
 

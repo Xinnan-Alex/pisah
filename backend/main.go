@@ -156,9 +156,10 @@ func (s *Server) routes() http.Handler {
 type ctxKey string
 
 const (
-	ctxOwnerID     ctxKey = "ownerID"
-	ctxParticipant ctxKey = "participant"
-	ctxSplitID     ctxKey = "splitID"
+	ctxOwnerID      ctxKey = "ownerID"
+	ctxOwnerClaims  ctxKey = "ownerClaims"
+	ctxParticipant  ctxKey = "participant"
+	ctxSplitID      ctxKey = "splitID"
 )
 
 // requireOwner verifies a Supabase HS256 JWT and stashes the user id (sub).
@@ -197,7 +198,9 @@ func (s *Server) requireOwner(h http.HandlerFunc) http.Handler {
 			writeErr(w, http.StatusUnauthorized, "token missing subject")
 			return
 		}
-		h(w, r.WithContext(context.WithValue(r.Context(), ctxOwnerID, sub)))
+		ctx := context.WithValue(r.Context(), ctxOwnerID, sub)
+		ctx = context.WithValue(ctx, ctxOwnerClaims, claims)
+		h(w, r.WithContext(ctx))
 	})
 }
 

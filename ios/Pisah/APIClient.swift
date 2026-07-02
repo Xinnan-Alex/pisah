@@ -85,6 +85,10 @@ actor APIClient {
 
     func setOwnerJWT(_ t: String) { ownerJWT = t }
 
+    func ownerDisplayName() -> String? {
+        ownerJWT.flatMap(JWTClaims.displayName(from:))
+    }
+
     static let oauthRedirect = "pisah://auth/callback"
 
     /// Google sign-in via Supabase OAuth in ASWebAuthenticationSession.
