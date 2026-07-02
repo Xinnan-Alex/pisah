@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -145,6 +146,48 @@ func (s *Server) handleCreateSplit(w http.ResponseWriter, r *http.Request) {
 		"shareUrl": fmt.Sprintf("%s/r/%s", s.cfg.PublicBaseURL, split.Slug),
 		"split":    split,
 	})
+}
+
+// GET /api/me/splits  (owner) — recent splits with collected progress.
+func (s *Server) handleListMySplits(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	summaries, err := s.store.ListOwnerSplits(r.Context(), ownerID)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load splits", err)
+		return
+	}
+	out := make([]map[string]any, 0, len(summaries))
+	for _, sum := range summaries {
+		out = append(out, map[string]any{
+			"split":        sum.Split,
+			"shareUrl":     fmt.Sprintf("%s/r/%s", s.cfg.PublicBaseURL, sum.Split.Slug),
+			"collectedSen": sum.CollectedSen,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"splits": out})
+}
+
+// DELETE /api/splits/{slug}  (owner) — permanently remove a split and its items/participants.
+func (s *Server) handleDeleteSplit(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	split, err := s.store.GetSplitBySlug(r.Context(), r.PathValue("slug"))
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "split not found")
+		return
+	}
+	if split.OwnerID != ownerID {
+		writeErr(w, http.StatusForbidden, "not your split")
+		return
+	}
+	if err := s.store.DeleteSplit(r.Context(), split.ID, ownerID); err != nil {
+		if errors.Is(err, errNotFound) {
+			writeErr(w, http.StatusNotFound, "split not found")
+			return
+		}
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not delete split", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // GET /api/splits/{slug}  (public) — friend landing + item list with claim status.

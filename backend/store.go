@@ -30,6 +30,13 @@ type Split struct {
 	ServiceSen  int64      `json:"serviceSen"`
 	RoundingSen int64      `json:"roundingSen"`
 	TotalSen    int64      `json:"totalSen"`
+	CreatedAt   *time.Time `json:"createdAt"`
+}
+
+type SplitSummary struct {
+	Split        Split  `json:"split"`
+	ShareURL     string `json:"shareUrl"`
+	CollectedSen int64  `json:"collectedSen"`
 }
 
 func (s Split) TaxTotalSen() int64 { return s.SSTSen + s.ServiceSen + s.RoundingSen }
@@ -135,6 +142,47 @@ func (st *Store) GetSplitBySlug(ctx context.Context, slug string) (Split, error)
 		return Split{}, errNotFound
 	}
 	return s, err
+}
+
+// ListOwnerSplits returns the owner's splits newest first, with collected totals.
+func (st *Store) ListOwnerSplits(ctx context.Context, ownerID string) ([]SplitSummary, error) {
+	rows, err := st.pool.Query(ctx, `
+		select s.id, s.slug, s.merchant, s.owner_name, s.owner_qr_url, s.captured_at,
+		       s.subtotal_sen, s.sst_sen, s.service_sen, s.rounding_sen, s.total_sen, s.created_at,
+		       coalesce((select sum(owed_sen) from participants where split_id = s.id and paid), 0)
+		from splits s
+		where s.owner_id = $1
+		order by s.created_at desc
+		limit 50`, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []SplitSummary
+	for rows.Next() {
+		var sum SplitSummary
+		if err := rows.Scan(
+			&sum.Split.ID, &sum.Split.Slug, &sum.Split.Merchant, &sum.Split.OwnerName, &sum.Split.OwnerQRURL,
+			&sum.Split.CapturedAt, &sum.Split.SubtotalSen, &sum.Split.SSTSen, &sum.Split.ServiceSen,
+			&sum.Split.RoundingSen, &sum.Split.TotalSen, &sum.Split.CreatedAt, &sum.CollectedSen,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, sum)
+	}
+	return out, rows.Err()
+}
+
+func (st *Store) DeleteSplit(ctx context.Context, splitID, ownerID string) error {
+	tag, err := st.pool.Exec(ctx, `delete from splits where id = $1 and owner_id = $2`, splitID, ownerID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return errNotFound
+	}
+	return nil
 }
 
 // ---- items ----

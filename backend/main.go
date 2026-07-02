@@ -137,6 +137,8 @@ func (s *Server) routes() http.Handler {
 	mux.Handle("POST /api/receipts/scan", s.requireOwner(s.handleScan))
 	mux.Handle("POST /api/splits", s.requireOwner(s.handleCreateSplit))
 	mux.Handle("GET /api/splits/{slug}/track", s.requireOwner(s.handleTrack))
+	mux.Handle("DELETE /api/splits/{slug}", s.requireOwner(s.handleDeleteSplit))
+	mux.Handle("GET /api/me/splits", s.requireOwner(s.handleListMySplits))
 	mux.Handle("GET /api/me/payment-settings", s.requireOwner(s.handleGetPaymentSettings))
 	mux.Handle("PUT /api/me/payment-settings", s.requireOwner(s.handleUpdatePaymentSettings))
 	mux.Handle("POST /api/me/duitnow-qr", s.requireOwner(s.handleUploadDuitNowQR))
@@ -159,10 +161,10 @@ func (s *Server) routes() http.Handler {
 type ctxKey string
 
 const (
-	ctxOwnerID      ctxKey = "ownerID"
-	ctxOwnerClaims  ctxKey = "ownerClaims"
-	ctxParticipant  ctxKey = "participant"
-	ctxSplitID      ctxKey = "splitID"
+	ctxOwnerID     ctxKey = "ownerID"
+	ctxOwnerClaims ctxKey = "ownerClaims"
+	ctxParticipant ctxKey = "participant"
+	ctxSplitID     ctxKey = "splitID"
 )
 
 // requireOwner verifies a Supabase HS256 JWT and stashes the user id (sub).
