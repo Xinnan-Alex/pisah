@@ -43,6 +43,24 @@ struct SignInView: View {
             }
             .buttonStyle(.plain).disabled(s.authBusy).padding(.top, 18)
 
+            HStack {
+                Rectangle().fill(P.border).frame(height: 1)
+                Text("or").font(F.t(12, .medium)).foregroundColor(P.mut)
+                Rectangle().fill(P.border).frame(height: 1)
+            }.padding(.vertical, 16)
+
+            Button { s.signInWithGoogle() } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "globe")
+                    Text("Continue with Google").font(F.t(15, .semibold))
+                }
+                .foregroundColor(P.ink)
+                .frame(maxWidth: .infinity).padding(16)
+                .background(Color.white)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(P.border, lineWidth: 1.5))
+            }
+            .buttonStyle(.plain).disabled(s.authBusy)
+
             Text("No app needed for friends — they pay by DuitNow QR")
                 .font(F.t(11, .medium)).foregroundColor(P.mut).multilineTextAlignment(.center).padding(.top, 16)
             Spacer()

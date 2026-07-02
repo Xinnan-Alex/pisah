@@ -194,6 +194,19 @@ final class AppState: ObservableObject {
         }
     }
 
+    func signInWithGoogle() {
+        errorMessage = nil
+        guard live, let client else { return }
+        authBusy = true
+        Task {
+            do {
+                try await client.signInWithGoogle()
+                go(.capture)
+            } catch { fail(error) }
+            authBusy = false
+        }
+    }
+
     // ---- owner: create split from the reviewed items, then go to share ----
     func startShare() {
         guard live, let client else { go(.share); return }

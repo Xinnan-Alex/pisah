@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -56,6 +57,24 @@ func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(data)
+}
+
+// GET /api/auth/oauth/google?redirect_to=pisah://auth/callback
+// Returns a Supabase GoTrue authorize URL for ASWebAuthenticationSession on iOS.
+func (s *Server) handleGoogleOAuthStart(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.SupabaseURL == "" || s.cfg.SupabasePublishableKey == "" {
+		writeErr(w, http.StatusNotImplemented, "auth not configured")
+		return
+	}
+	redirectTo := r.URL.Query().Get("redirect_to")
+	if redirectTo == "" {
+		redirectTo = "pisah://auth/callback"
+	}
+	q := url.Values{}
+	q.Set("provider", "google")
+	q.Set("redirect_to", redirectTo)
+	authURL := strings.TrimRight(s.cfg.SupabaseURL, "/") + "/auth/v1/authorize?" + q.Encode()
+	writeJSON(w, http.StatusOK, map[string]string{"url": authURL})
 }
 
 // POST /api/receipts/scan  (owner)

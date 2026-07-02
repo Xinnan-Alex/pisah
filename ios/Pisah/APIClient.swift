@@ -85,6 +85,23 @@ actor APIClient {
 
     func setOwnerJWT(_ t: String) { ownerJWT = t }
 
+    static let oauthRedirect = "pisah://auth/callback"
+
+    /// Google sign-in via Supabase OAuth in ASWebAuthenticationSession.
+    func signInWithGoogle() async throws {
+        struct OAuthStart: Decodable { let url: String }
+        let enc = Self.oauthRedirect.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? Self.oauthRedirect
+        let start: OAuthStart = try await send("api/auth/oauth/google?redirect_to=\(enc)", "GET", auth: .none)
+        guard let url = URL(string: start.url) else { throw APIError.http(0, "bad oauth url") }
+        let callback = try await Task { @MainActor in
+            try await OAuthSession().start(url: url, callbackScheme: "pisah")
+        }.value
+        guard let token = OAuthCallback.accessToken(from: callback) else {
+            throw APIError.http(0, "missing access_token in oauth callback")
+        }
+        ownerJWT = token
+    }
+
     // ---- owner ----
     func scanReceipt(_ image: Data) async throws -> ScanResponse {
         try await send("api/receipts/scan", "POST", body: image, contentType: "image/jpeg", auth: .owner)
@@ -119,7 +136,7 @@ actor APIClient {
 
     // ---- SSE: yields a PaidEvent each time someone pays ----
     func events(slug: String) -> AsyncStream<PaidEvent> {
-        let url = baseURL.appendingPathComponent("api/splits/\(slug)/events")
+        let url = requestURL(for: "api/splits/\(slug)/events")
         let session = self.session, dec = self.dec
         return AsyncStream { cont in
             let task = Task {
@@ -145,10 +162,17 @@ actor APIClient {
     // ---- transport ----
     private enum Auth { case none, owner, participant }
 
+    private func requestURL(for path: String) -> URL {
+        guard let url = URL(string: path, relativeTo: baseURL)?.absoluteURL else {
+            preconditionFailure("invalid api path: \(path)")
+        }
+        return url
+    }
+
     private func send<T: Decodable>(_ path: String, _ method: String,
                                     body: Data? = nil, contentType: String = "application/json",
                                     auth: Auth) async throws -> T {
-        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+        var req = URLRequest(url: requestURL(for: path))
         req.httpMethod = method
         if let body { req.httpBody = body; req.setValue(contentType, forHTTPHeaderField: "Content-Type") }
         switch auth {

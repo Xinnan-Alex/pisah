@@ -75,8 +75,18 @@ supabase db push
 
 Then configure the backend for prod from `backend/.env.prod.example`
 (`DATABASE_URL` pooler string, `SUPABASE_URL`, `PUBLIC_BASE_URL`, AWS keys) and
-deploy it. Point the iOS app at prod by duplicating the **Pisah** scheme and
-setting `PISAH_API` / `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` to the prod values.
+deploy it. Use the **Pisah-Prod** Xcode scheme — it sets `PISAH_API` to the
+deployed ALB URL. The iOS app only needs `PISAH_API` (sign-in is proxied by the backend).
+
+### Google sign-in (prod Supabase)
+
+1. **Google Cloud Console** → APIs & Services → Credentials → Create **OAuth client ID** → **Web application**.
+   - Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`
+2. **Supabase Dashboard** → Authentication → Providers → **Google** → enable, paste Web client ID + secret.
+3. **Supabase Dashboard** → Authentication → URL Configuration → add redirect URL: `pisah://auth/callback`
+4. Deploy backend (includes `GET /api/auth/oauth/google`), rebuild iOS with **Pisah-Prod**, tap **Continue with Google**.
+
+Local Google auth also needs `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in your shell when running `supabase start` (see `supabase/config.toml`).
 
 ---
 
