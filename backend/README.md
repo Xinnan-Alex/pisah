@@ -32,6 +32,8 @@ make test                     # share math + SSE broker + token gen (no DB neede
 | POST | `/api/splits/{slug}/claims` | participant | `{itemIds}` → recompute, return my share |
 | GET  | `/api/splits/{slug}/share` | participant | my breakdown lines + owner DuitNow QR |
 | POST | `/api/splits/{slug}/paid` | participant | mark paid, push SSE event |
+| GET  | `/api/me/splits` | owner | recent splits with collected progress |
+| DELETE | `/api/splits/{slug}` | owner | permanently delete a split and its items/participants |
 | GET  | `/api/splits/{slug}/track` | owner | collected total + per-participant status |
 | GET  | `/api/splits/{slug}/events` | public | SSE stream of payment events |
 
