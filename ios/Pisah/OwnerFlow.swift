@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import PhotosUI
 
 // Owner sign-in (Supabase GoTrue). Shown only in live mode; offline skips straight to capture.
 struct SignInView: View {
@@ -488,6 +489,8 @@ struct TrackView: View {
 
 struct SettingsView: View {
     @EnvironmentObject var s: AppState
+    @State private var pickedQR: PhotosPickerItem?
+
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -502,55 +505,91 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     sectionLabel("YOUR DUITNOW QR")
                     HStack(spacing: 16) {
-                        QRView(seed: 13, cell: 3.2).padding(8).background(P.paper).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: 0xEFE6D8))).clipShape(RoundedRectangle(cornerRadius: 12))
+                        qrPreview
                         VStack(alignment: .leading, spacing: 3) {
                             Text("Shown to friends").font(F.t(14, .bold)).foregroundColor(P.ink)
                             Text("when they pay you back").font(F.t(12, .medium)).foregroundColor(P.brown)
-                            Text("Replace QR").font(F.t(12, .bold)).foregroundColor(P.ink).padding(.horizontal, 13).padding(.vertical, 8).background(P.cream2).clipShape(RoundedRectangle(cornerRadius: 9)).padding(.top, 10)
+                            PhotosPicker(selection: $pickedQR, matching: .images) {
+                                HStack(spacing: 6) {
+                                    if s.settingsBusy { ProgressView().scaleEffect(0.8) }
+                                    Text(s.hasDuitNowQR ? "Replace QR" : "Add QR")
+                                        .font(F.t(12, .bold)).foregroundColor(P.ink)
+                                }
+                                .padding(.horizontal, 13).padding(.vertical, 8)
+                                .background(P.cream2).clipShape(RoundedRectangle(cornerRadius: 9))
+                                .padding(.top, 10)
+                            }
+                            .disabled(s.settingsBusy)
                         }
                         Spacer()
                     }.padding(18).card(20)
 
-                    sectionLabel("RECEIVING ACCOUNT").padding(.top, 14)
-                    VStack(spacing: 0) {
-                        acctRow("MB", Color(hex: 0xFFE08A), Color(hex: 0x7A5A00), "Maybank", "•••• 6721", "mb")
-                        Divider().overlay(P.line)
-                        acctRow("TNG", Color(hex: 0xD4E9FF), Color(hex: 0x1F6FB5), "Touch 'n Go eWallet", "•••• 4408", "tng")
-                    }.card(20)
-                    Text("+ Add account").font(F.t(13, .bold)).foregroundColor(P.orange).frame(maxWidth: .infinity).padding(13)
+                    if !s.hasDuitNowQR {
+                        Text("Upload your DuitNow QR so friends can pay you back after splitting.")
+                            .font(F.t(12, .medium)).foregroundColor(P.brown)
+                            .padding(.top, 10)
+                    }
 
-                    Button { withAnimation { s.auto.toggle() } } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Auto-fill amount").font(F.t(14, .bold)).foregroundColor(P.ink)
-                                Text("QR opens with exact share").font(F.t(11, .medium)).foregroundColor(P.brown)
-                            }
-                            Spacer()
-                            Toggle("", isOn: Binding(get: { s.auto }, set: { s.auto = $0 })).labelsHidden().tint(P.green)
-                        }.padding(.horizontal, 16).padding(.vertical, 15).card()
-                    }.buttonStyle(.plain).padding(.top, 4)
+                    sectionLabel("PAYMENT PREFERENCE").padding(.top, 18)
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Auto-fill amount").font(F.t(14, .bold)).foregroundColor(P.ink)
+                            Text("Remind friends to pay the exact share").font(F.t(11, .medium)).foregroundColor(P.brown)
+                        }
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { s.autoFillAmount },
+                            set: { s.setAutoFillAmount($0) }
+                        )).labelsHidden().tint(P.green)
+                    }.padding(.horizontal, 16).padding(.vertical, 15).card()
                 }.padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 22)
             }
         }
         .background(P.cream)
+        .task { s.loadPaymentSettings() }
+        .onChange(of: pickedQR) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    s.uploadDuitNowQR(data)
+                }
+                pickedQR = nil
+            }
+        }
     }
+
+    @ViewBuilder
+    private var qrPreview: some View {
+        Group {
+            if let data = s.profileQrPreview, let ui = UIImage(data: data) {
+                Image(uiImage: ui).resizable().scaledToFit()
+            } else if let url = s.profileQrURL {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let img): img.resizable().scaledToFit()
+                    case .failure: qrEmptyState
+                    default: ProgressView()
+                    }
+                }
+            } else {
+                qrEmptyState
+            }
+        }
+        .frame(width: 88, height: 88)
+        .padding(8)
+        .background(P.paper)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: 0xEFE6D8)))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var qrEmptyState: some View {
+        VStack(spacing: 4) {
+            Image(systemName: "qrcode").font(.system(size: 22, weight: .medium)).foregroundColor(P.mut)
+            Text("No QR").font(F.t(10, .semibold)).foregroundColor(P.mut)
+        }.frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private func sectionLabel(_ t: String) -> some View {
         Text(t).font(F.t(12, .semibold)).foregroundColor(P.brown).tracking(0.5).padding(.bottom, 9)
-    }
-    private func acctRow(_ tag: String, _ bg: Color, _ fg: Color, _ name: String, _ num: String, _ key: String) -> some View {
-        Button { withAnimation { s.acct = key } } label: {
-            HStack(spacing: 12) {
-                Text(tag).font(F.t(12, .heavy)).foregroundColor(fg).frame(width: 38, height: 38).background(bg).clipShape(RoundedRectangle(cornerRadius: 10))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name).font(F.t(14, .bold)).foregroundColor(P.ink)
-                    Text(num).font(F.t(12, .medium)).foregroundColor(P.brown)
-                }
-                Spacer()
-                ZStack {
-                    Circle().stroke(s.acct == key ? P.orange : Color(hex: 0xDCD2C4), lineWidth: 2).frame(width: 22, height: 22)
-                    if s.acct == key { Circle().fill(P.orange).frame(width: 11, height: 11) }
-                }
-            }.padding(.horizontal, 16).padding(.vertical, 15)
-        }.buttonStyle(.plain)
     }
 }

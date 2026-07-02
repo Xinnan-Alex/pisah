@@ -137,6 +137,9 @@ func (s *Server) routes() http.Handler {
 	mux.Handle("POST /api/receipts/scan", s.requireOwner(s.handleScan))
 	mux.Handle("POST /api/splits", s.requireOwner(s.handleCreateSplit))
 	mux.Handle("GET /api/splits/{slug}/track", s.requireOwner(s.handleTrack))
+	mux.Handle("GET /api/me/payment-settings", s.requireOwner(s.handleGetPaymentSettings))
+	mux.Handle("PUT /api/me/payment-settings", s.requireOwner(s.handleUpdatePaymentSettings))
+	mux.Handle("POST /api/me/duitnow-qr", s.requireOwner(s.handleUploadDuitNowQR))
 
 	// Friend (public link / participant token).
 	mux.HandleFunc("GET /api/splits/{slug}", s.handleGetSplit)
@@ -270,7 +273,7 @@ func withCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*") // ponytail: open CORS for the web view; lock to your domain in prod
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

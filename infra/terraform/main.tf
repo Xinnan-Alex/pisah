@@ -1,5 +1,6 @@
 locals {
-  tls             = var.domain_name != "" && var.route53_zone_id != ""
+  tls             = var.domain_name != ""
+  use_route53     = var.route53_zone_id != ""
   public_base_url = var.public_base_url != "" ? var.public_base_url : (local.tls ? "https://${var.domain_name}" : "")
 
   container_secrets = concat(
@@ -212,7 +213,7 @@ resource "aws_lb_target_group" "app" {
   }
 }
 
-# ---- TLS (only when a domain + Route53 zone are provided) ----
+# ---- TLS (when domain_name is set; DNS may be Route53 or external e.g. Cloudflare) ----
 resource "aws_acm_certificate" "app" {
   count             = local.tls ? 1 : 0
   domain_name       = var.domain_name
@@ -223,7 +224,7 @@ resource "aws_acm_certificate" "app" {
 }
 
 resource "aws_route53_record" "cert_validation" {
-  for_each = local.tls ? {
+  for_each = local.tls && local.use_route53 ? {
     for dvo in aws_acm_certificate.app[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       type   = dvo.resource_record_type
@@ -239,9 +240,13 @@ resource "aws_route53_record" "cert_validation" {
 }
 
 resource "aws_acm_certificate_validation" "app" {
-  count                   = local.tls ? 1 : 0
-  certificate_arn         = aws_acm_certificate.app[0].arn
-  validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
+  count           = local.tls ? 1 : 0
+  certificate_arn = aws_acm_certificate.app[0].arn
+  validation_record_fqdns = local.use_route53 ? [
+    for r in aws_route53_record.cert_validation : r.fqdn
+    ] : [
+    for dvo in aws_acm_certificate.app[0].domain_validation_options : dvo.resource_record_name
+  ]
 }
 
 # HTTPS listener + HTTP→HTTPS redirect (TLS mode)
@@ -289,7 +294,7 @@ resource "aws_lb_listener" "http_plain" {
 }
 
 resource "aws_route53_record" "app" {
-  count   = local.tls ? 1 : 0
+  count   = local.tls && local.use_route53 ? 1 : 0
   zone_id = var.route53_zone_id
   name    = var.domain_name
   type    = "A"

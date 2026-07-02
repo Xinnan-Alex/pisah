@@ -73,8 +73,8 @@ final class AppState: ObservableObject {
     @Published var nl = true
     @Published var tt = false
     @Published var sotong = false
-    @Published var acct = "mb"
-    @Published var auto = true
+    @Published var autoFillAmount = true
+    @Published var settingsBusy = false
 
     // Live state — populated from the backend; nil/empty in offline mode.
     @Published var slug: String?
@@ -83,7 +83,11 @@ final class AppState: ObservableObject {
     @Published var serverOwedSen: Int?
     @Published var serverTaxSen: Int?
     @Published var serverShareLines: [ShareLine]?
+    @Published var serverOwnerName: String?
+    @Published var shareAutoFillAmount = true
     @Published var ownerQrURL: URL?
+    @Published var profileQrURL: URL?       // owner's saved DuitNow QR from payment settings
+    @Published var profileQrPreview: Data?  // local preview while uploading / offline pick
     @Published var trackParticipants: [ParticipantDTO]?
     @Published var collectedSenServer: Int?
     @Published var totalSenServer: Int?
@@ -91,10 +95,21 @@ final class AppState: ObservableObject {
     @Published var errorMessage: String?
 
     init() {
+        autoFillAmount = UserDefaults.standard.object(forKey: "autoFillAmount") as? Bool ?? true
         // Dev convenience: inject an owner JWT without a sign-in screen.
         if let jwt = ProcessInfo.processInfo.environment["PISAH_OWNER_JWT"], let c = client {
-            Task { await c.setOwnerJWT(jwt) }
+            Task {
+                await c.setOwnerJWT(jwt)
+                loadPaymentSettings()
+            }
         }
+    }
+
+    private func applyPaymentSettings(_ s: PaymentSettingsDTO) {
+        autoFillAmount = s.autoFillAmount
+        UserDefaults.standard.set(s.autoFillAmount, forKey: "autoFillAmount")
+        profileQrURL = s.ownerQrUrl.flatMap(URL.init(string:))
+        if profileQrURL != nil { profileQrPreview = nil }
     }
 
     // ---- formatting ----
@@ -144,6 +159,8 @@ final class AppState: ObservableObject {
         return "pisah.app/r/\(slug)"
     }
     var shareMessage: String { "Split the bill with me on Pisah 👉 \(shareLink)" }
+
+    var hasDuitNowQR: Bool { profileQrPreview != nil || profileQrURL != nil }
 
     var collectedStr: String { collectedSenServer.map(rmSen) ?? rm(collected) }
     var collectedFrac: Double {
@@ -206,6 +223,7 @@ final class AppState: ObservableObject {
                 try await client.signIn(email: email.trimmingCharacters(in: .whitespaces), password: password)
                 if let n = await client.ownerDisplayName() { name = n }
                 password = ""
+                loadPaymentSettings()
                 go(.capture)
             } catch { fail(error) }
             authBusy = false
@@ -220,22 +238,56 @@ final class AppState: ObservableObject {
             do {
                 try await client.signInWithGoogle()
                 if let n = await client.ownerDisplayName() { name = n }
+                loadPaymentSettings()
                 go(.capture)
             } catch { fail(error) }
             authBusy = false
         }
     }
 
+    // ---- owner payment settings ----
+    func loadPaymentSettings() {
+        guard live, let client else { return }
+        Task {
+            do { applyPaymentSettings(try await client.getPaymentSettings()) }
+            catch { fail(error) }
+        }
+    }
+
+    func setAutoFillAmount(_ value: Bool) {
+        autoFillAmount = value
+        UserDefaults.standard.set(value, forKey: "autoFillAmount")
+        guard live, let client else { return }
+        Task {
+            do { applyPaymentSettings(try await client.updatePaymentSettings(autoFillAmount: value)) }
+            catch { fail(error) }
+        }
+    }
+
+    func uploadDuitNowQR(_ jpeg: Data) {
+        profileQrPreview = jpeg
+        guard live, let client else { return }
+        settingsBusy = true
+        Task {
+            defer { settingsBusy = false }
+            do { applyPaymentSettings(try await client.uploadDuitNowQR(jpeg)) }
+            catch { fail(error) }
+        }
+    }
+
+
     // ---- owner: create split from the reviewed items, then go to share ----
     func startShare() {
         guard live, let client else { go(.share); return }
-        let input = parsed.map { Self.inputFrom($0, ownerName: name) } ?? Self.reviewSplitInput(ownerName: name)
+        var input = parsed.map { Self.inputFrom($0, ownerName: name) } ?? Self.reviewSplitInput(ownerName: name)
+        input.ownerQrUrl = profileQrURL?.absoluteString
         Task {
             do {
                 let r = try await client.createSplit(input)
                 slug = r.slug
                 shareURL = r.shareUrl
                 totalSenServer = r.split.totalSen
+                if let u = r.split.ownerQrUrl { ownerQrURL = URL(string: u) }
             } catch { fail(error) }
             go(.share)
         }
@@ -290,6 +342,8 @@ final class AppState: ObservableObject {
         serverOwedSen = r.owedSen
         serverTaxSen = r.taxSen
         serverShareLines = r.lines
+        serverOwnerName = r.ownerName
+        shareAutoFillAmount = r.autoFillAmount ?? true
         if let u = r.ownerQrUrl { ownerQrURL = URL(string: u) }
     }
 

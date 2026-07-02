@@ -54,3 +54,10 @@ create table if not exists claims (
     primary key (participant_id, item_id)
 );
 create index if not exists claims_item_idx on claims(item_id);
+
+create table if not exists owner_profiles (
+    owner_id          uuid primary key,        -- auth.users.id
+    owner_qr_url      text,                    -- Supabase Storage public URL
+    auto_fill_amount  boolean not null default true,
+    updated_at        timestamptz not null default now()
+);

@@ -38,10 +38,15 @@ struct GetSplitResponse: Codable { var split: SplitDTO; var taxTotalSen: Int; va
 struct JoinResponse: Codable { var token: String; var participant: ParticipantDTO }
 struct ShareResponse: Codable {
     var merchant: String; var ownerName: String; var ownerQrUrl: String?
+    var autoFillAmount: Bool?
     var lines: [ShareLine]; var taxSen: Int; var owedSen: Int
 }
 struct CreateSplitResponse: Codable { var id: String; var slug: String; var shareUrl: String; var split: SplitDTO }
 struct TrackResponse: Codable { var split: SplitDTO; var collectedSen: Int; var participants: [ParticipantDTO] }
+struct PaymentSettingsDTO: Codable {
+    var ownerQrUrl: String?
+    var autoFillAmount: Bool
+}
 struct ScanResponse: Codable {
     var merchant: String; var subtotalSen: Int; var taxSen: Int; var totalSen: Int
     var items: [ScanItem]
@@ -115,6 +120,18 @@ actor APIClient {
     }
     func track(slug: String) async throws -> TrackResponse {
         try await send("api/splits/\(slug)/track", "GET", auth: .owner)
+    }
+    func getPaymentSettings() async throws -> PaymentSettingsDTO {
+        try await send("api/me/payment-settings", "GET", auth: .owner)
+    }
+    func updatePaymentSettings(autoFillAmount: Bool) async throws -> PaymentSettingsDTO {
+        struct Body: Encodable { let autoFillAmount: Bool }
+        return try await send("api/me/payment-settings", "PUT",
+                              body: try JSONEncoder().encode(Body(autoFillAmount: autoFillAmount)),
+                              auth: .owner)
+    }
+    func uploadDuitNowQR(_ image: Data) async throws -> PaymentSettingsDTO {
+        try await send("api/me/duitnow-qr", "POST", body: image, contentType: "image/jpeg", auth: .owner)
     }
 
     // ---- friend ----
