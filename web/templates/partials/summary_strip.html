@@ -1,15 +1,18 @@
 {{define "partials/summary_strip.html"}}
-<div class="card summary-strip" style="padding:0;margin-top:14px">
+<div id="summary-strip" class="card summary-strip" style="padding:0;margin-top:14px"
+  data-outstanding-sen="{{.OutstandingSen}}"
+  data-collected-sen="{{.CollectedTotalSen}}"
+  data-active-count="{{.ActiveCount}}">
   <div class="summary-cell">
-    <div class="summary-val" style="color:var(--orange)">{{rm .OutstandingSen}}</div>
+    <div id="summary-outstanding" class="summary-val" style="color:var(--orange)">{{rm .OutstandingSen}}</div>
     <div class="summary-lbl">Outstanding</div>
   </div>
   <div class="summary-cell">
-    <div class="summary-val" style="color:var(--green)">{{rm .CollectedTotalSen}}</div>
+    <div id="summary-collected" class="summary-val" style="color:var(--green)">{{rm .CollectedTotalSen}}</div>
     <div class="summary-lbl">Collected</div>
   </div>
   <div class="summary-cell">
-    <div class="summary-val">{{.ActiveCount}}</div>
+    <div id="summary-active" class="summary-val">{{.ActiveCount}}</div>
     <div class="summary-lbl">Active</div>
   </div>
 </div>

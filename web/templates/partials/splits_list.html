@@ -1,6 +1,7 @@
 {{define "partials/splits_list.html"}}
 {{range .Splits}}
-<a href="/splits/{{.Split.Slug}}/track" class="split-row tap">
+<a href="/splits/{{.Split.Slug}}/track" class="split-row tap"
+  data-total-sen="{{.Split.TotalSen}}" data-collected-sen="{{.CollectedSen}}">
   <div class="split-row-head">
     <div>
       <div class="split-row-title">{{.Split.Merchant}}</div>
