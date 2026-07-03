@@ -16,7 +16,7 @@
 
   {{if .Splits}}
   {{template "partials/summary_strip.html" .}}
-  <div class="capture-splits">
+  <div id="capture-splits" class="capture-splits">
     <div class="hint" style="font:600 11px 'Figtree';letter-spacing:.5px;text-transform:uppercase">Your splits</div>
     <div id="splits-list">
       {{template "partials/splits_list.html" .}}
