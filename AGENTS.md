@@ -40,3 +40,35 @@ PRs should include:
 ## Security & Configuration Tips
 Copy `.env.example` to `.env` and fill in `DATABASE_URL`, `SUPABASE_JWT_SECRET`, and AWS credentials before running locally.
 Do not commit secrets. Open CORS and in-memory SSE behavior are deliberate simplifications; tighten them before production deployment.
+
+## Cursor Cloud specific instructions
+
+The dev environment is pre-provisioned in the VM snapshot (persists across sessions):
+Go 1.23 (`/usr/bin/go` is symlinked to it), a local PostgreSQL 16 cluster, and a
+gitignored `/workspace/.env` wired for local dev. The startup update script only runs
+`go mod download`. Standard commands live in the Makefile/README (`make run`,
+`make test`); the notes below are the non-obvious caveats.
+
+- **Local Postgres, not Supabase.** There is no Supabase CLI/Docker here. A native
+  Postgres 16 cluster holds a `pisah` database owned by role `pisah` (password
+  `pisah`) with `schema.sql` already applied. The cluster is usually not running on a
+  fresh boot — start it with `sudo pg_ctlcluster 16 main start` (or
+  `sudo service postgresql start`) before `make run`/DB work. `DATABASE_URL` in `.env`
+  points at `postgresql://pisah:pisah@127.0.0.1:5432/pisah`.
+- **Owner auth uses HS256, no live Supabase.** `.env` sets `SUPABASE_JWT_SECRET` (and
+  leaves `SUPABASE_URL` empty), so the server verifies owner tokens as legacy HS256
+  JWTs. There is no way to sign in through the `/signin` web page (that proxies a real
+  Supabase Auth instance). To exercise owner-only APIs (`/api/splits`, `/api/me/*`,
+  track), mint an HS256 JWT signed with `local-dev-secret` containing a `sub` (any
+  UUID) and an `exp`, and send it as `Authorization: Bearer <jwt>`.
+- **Testing owner + friend flows end to end:** create a split via `POST /api/splits`
+  with an owner JWT to get a `slug`, then drive the friend flow (join → claims →
+  share → paid) via the web UI at `/r/<slug>` (no account needed) or the
+  `/api/splits/<slug>/*` endpoints. The web UI loads htmx/Alpine/fonts from public
+  CDNs, so the browser needs internet.
+- **Optional, unconfigured features:** AWS Textract OCR (`/scan`, `/api/receipts/scan`)
+  and Supabase Storage DuitNow-QR upload are intentionally not set up; those endpoints
+  fail but everything else works. Create splits with explicit item JSON instead of OCR.
+- `make test` is DB-free (pure `share/` math + broker + tokens). Lint is `gofmt` +
+  `go vet`; note `web.go` and `web_handlers.go` are not gofmt-clean in the current
+  tree (pre-existing).
