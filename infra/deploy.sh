@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the backend image (ARM64, to match Fargate runtime_platform), push to ECR,
+# Build the server image (ARM64, to match Fargate runtime_platform), push to ECR,
 # and roll the ECS service. Run AFTER `terraform apply` has created the ECR repo.
 #
 #   ./infra/deploy.sh
@@ -8,7 +8,7 @@
 set -euo pipefail
 
 TF_DIR="$(cd "$(dirname "$0")/terraform" && pwd)"
-BACKEND_DIR="$(cd "$(dirname "$0")/../backend" && pwd)"
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 REGION="$(terraform -chdir="$TF_DIR" output -raw aws_region 2>/dev/null || echo ap-southeast-1)"
 REPO="$(terraform -chdir="$TF_DIR" output -raw ecr_repository_url)"
@@ -20,7 +20,7 @@ echo "==> ECR login ($REGISTRY)"
 aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$REGISTRY"
 
 echo "==> build + push ($REPO:latest)"
-docker build --platform linux/arm64 -t "$REPO:latest" "$BACKEND_DIR"
+docker build --platform linux/arm64 -t "$REPO:latest" "$APP_DIR"
 docker push "$REPO:latest"
 
 echo "==> roll service ($CLUSTER/$SERVICE)"

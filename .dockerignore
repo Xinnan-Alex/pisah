@@ -1,0 +1,9 @@
+# Keep the Docker build context to just the Go sources + embedded web assets.
+# (Both Dockerfile — full build — and Dockerfile.release — prebuilt `pisah` binary.)
+*
+!*.go
+!go.mod
+!go.sum
+!share
+!web
+!pisah

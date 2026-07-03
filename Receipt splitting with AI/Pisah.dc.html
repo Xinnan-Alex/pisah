@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Figtree:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Figtree',sans-serif}
+</style>
+</helmet>
+
+<!-- ===== MASTER TITLE ===== -->
+<div style="position:absolute;left:80px;top:34px;width:820px">
+  <div style="font:800 27px 'Bricolage Grotesque';color:#221B14;letter-spacing:-.02em">Pisah <span style="color:#F25C3B">·</span> AI receipt splitter</div>
+  <div style="font:500 14px 'Figtree';color:#6B5E50;margin-top:5px">Snap a receipt → AI reads the items → share a link → friends pick what they had & pay by DuitNow QR. One direction, three flows.</div>
+</div>
+
+<!-- ===== SECTION A ===== -->
+<div style="position:absolute;left:80px;top:120px;font:700 14px 'Figtree';color:#F25C3B;letter-spacing:.08em">BILL OWNER · APP</div>
+
+<!-- FRAME 1 — Capture -->
+<div style="position:absolute;left:80px;top:172px;width:320px">
+  <div data-drags-parent="1" style="position:absolute;top:-23px;font:600 12px 'Figtree';color:#6B5E50">1 · Snap the receipt</div>
+  <div style="width:320px;background:#fff;border-radius:36px;box-shadow:0 16px 40px rgba(34,27,20,.13);overflow:hidden;border:1px solid rgba(34,27,20,.05)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px 4px;font:700 13px 'Figtree';color:#221B14"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;font:700 11px 'Figtree'"><span>5G</span><div style="width:18px;height:10px;border:1.5px solid #221B14;border-radius:3px;position:relative"><div style="position:absolute;top:1.5px;left:1.5px;bottom:1.5px;right:4px;background:#221B14;border-radius:1px"></div></div></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 24px 0"><div style="font:800 20px 'Bricolage Grotesque';color:#221B14;letter-spacing:-.02em">Pisah</div><div style="width:34px;height:34px;border-radius:50%;background:#F25C3B;color:#fff;display:flex;align-items:center;justify-content:center;font:700 13px 'Figtree'">A</div></div>
+    <div style="padding:12px 24px 2px"><div style="font:800 25px 'Bricolage Grotesque';color:#221B14;letter-spacing:-.02em;line-height:1.08">Snap your<br>receipt</div><div style="font:500 13px 'Figtree';color:#6B5E50;margin-top:6px">We'll read every item with AI</div></div>
+    <div style="margin:14px 24px;height:330px;background:#1C1610;border-radius:26px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center">
+      <div style="position:absolute;top:18px;left:18px;width:26px;height:26px;border-top:3px solid #F25C3B;border-left:3px solid #F25C3B;border-radius:8px 0 0 0"></div>
+      <div style="position:absolute;top:18px;right:18px;width:26px;height:26px;border-top:3px solid #F25C3B;border-right:3px solid #F25C3B;border-radius:0 8px 0 0"></div>
+      <div style="position:absolute;bottom:18px;left:18px;width:26px;height:26px;border-bottom:3px solid #F25C3B;border-left:3px solid #F25C3B;border-radius:0 0 0 8px"></div>
+      <div style="position:absolute;bottom:18px;right:18px;width:26px;height:26px;border-bottom:3px solid #F25C3B;border-right:3px solid #F25C3B;border-radius:0 0 8px 0"></div>
+      <div style="width:152px;background:#FBF7F2;border-radius:8px;padding:16px 16px;transform:rotate(-4deg);box-shadow:0 14px 30px rgba(0,0,0,.4)">
+        <div style="height:9px;width:64%;background:#221B14;border-radius:3px;margin:0 auto 14px"></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:9px"><div style="height:6px;width:52%;background:#DDD3C5;border-radius:3px"></div><div style="height:6px;width:20%;background:#DDD3C5;border-radius:3px"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:9px"><div style="height:6px;width:60%;background:#DDD3C5;border-radius:3px"></div><div style="height:6px;width:16%;background:#DDD3C5;border-radius:3px"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:9px"><div style="height:6px;width:44%;background:#DDD3C5;border-radius:3px"></div><div style="height:6px;width:22%;background:#DDD3C5;border-radius:3px"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px"><div style="height:6px;width:56%;background:#DDD3C5;border-radius:3px"></div><div style="height:6px;width:18%;background:#DDD3C5;border-radius:3px"></div></div>
+        <div style="border-top:1.5px dashed #C9BDAB;padding-top:10px;display:flex;justify-content:space-between"><div style="height:7px;width:30%;background:#221B14;border-radius:3px"></div><div style="height:7px;width:26%;background:#221B14;border-radius:3px"></div></div>
+      </div>
+      <div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;font:600 11px 'Figtree';color:rgba(255,255,255,.7)">Align receipt within the frame</div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:2px 36px 24px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:46px;height:46px;border-radius:13px;background:#F3ECE2;display:flex;align-items:center;justify-content:center"><div style="width:18px;height:15px;border:2px solid #6B5E50;border-radius:3px"></div></div><span style="font:600 10px 'Figtree';color:#6B5E50">Gallery</span></div>
+      <div style="width:72px;height:72px;border-radius:50%;border:4px solid #F25C3B;display:flex;align-items:center;justify-content:center"><div style="width:54px;height:54px;border-radius:50%;background:#F25C3B"></div></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:46px;height:46px;border-radius:13px;background:#F3ECE2;display:flex;align-items:center;justify-content:center"><div style="width:16px;height:16px;border-radius:50%;border:2px solid #6B5E50"></div></div><span style="font:600 10px 'Figtree';color:#6B5E50">Flash</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- FRAME 2 — Scanning -->
+<div style="position:absolute;left:480px;top:172px;width:320px">
+  <div data-drags-parent="1" style="position:absolute;top:-23px;font:600 12px 'Figtree';color:#6B5E50">2 · AI reads it</div>
+  <div style="width:320px;background:#fff;border-radius:36px;box-shadow:0 16px 40px rgba(34,27,20,.13);overflow:hidden;border:1px solid rgba(34,27,20,.05)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px 4px;font:700 13px 'Figtree';color:#221B14"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;font:700 11px 'Figtree'"><span>5G</span><div style="width:18px;height:10px;border:1.5px solid #221B14;border-radius:3px;position:relative"><div style="position:absolute;top:1.5px;left:1.5px;bottom:1.5px;right:4px;background:#221B14;border-radius:1px"></div></div></div></div>
+    <div style="margin:14px 24px 16px;height:300px;background:#1C1610;border-radius:26px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center">
+      <div style="width:148px;background:#FBF7F2;border-radius:8px;padding:16px;box-shadow:0 14px 30px rgba(0,0,0,.4)">
+        <div style="height:9px;width:64%;background:#221B14;border-radius:3px;margin:0 auto 14px"></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:9px"><div style="height:6px;width:52%;background:#DDD3C5;border-radius:3px"></div><div style="height:6px;width:20%;background:#DDD3C5;border-radius:3px"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:9px"><div style="height:6px;width:60%;background:#DDD3C5;border-radius:3px"></div><div style="height:6px;width:16%;background:#DDD3C5;border-radius:3px"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:9px"><div style="height:6px;width:44%;background:#DDD3C5;border-radius:3px"></div><div style="height:6px;width:22%;background:#DDD3C5;border-radius:3px"></div></div>
+        <div style="display:flex;justify-content:space-between"><div style="height:6px;width:56%;background:#DDD3C5;border-radius:3px"></div><div style="height:6px;width:18%;background:#DDD3C5;border-radius:3px"></div></div>
+      </div>
+      <div style="position:absolute;left:0;right:0;top:150px;height:3px;background:linear-gradient(90deg,transparent,#F25C3B,transparent);box-shadow:0 0 18px 4px rgba(242,92,59,.5)"></div>
+      <div style="position:absolute;top:18px;right:18px;display:flex;align-items:center;gap:6px;background:rgba(242,92,59,.16);border:1px solid rgba(242,92,59,.4);padding:6px 11px;border-radius:20px"><div style="width:8px;height:8px;border-radius:50%;background:#F25C3B"></div><span style="font:700 11px 'Figtree';color:#FFD9CE">AI reading</span></div>
+    </div>
+    <div style="padding:0 24px 6px"><div style="font:800 22px 'Bricolage Grotesque';color:#221B14;letter-spacing:-.02em">Reading your receipt…</div><div style="font:500 13px 'Figtree';color:#6B5E50;margin-top:4px">This usually takes a few seconds</div></div>
+    <div style="padding:10px 24px 26px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:11px"><div style="width:22px;height:22px;border-radius:50%;background:#18A07A;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg);margin-top:-2px"></div></div><span style="font:600 14px 'Figtree';color:#221B14">Detected <b>Nasi Lemak House</b></span></div>
+      <div style="display:flex;align-items:center;gap:11px"><div style="width:22px;height:22px;border-radius:50%;background:#18A07A;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg);margin-top:-2px"></div></div><span style="font:600 14px 'Figtree';color:#221B14">Found <b>8 items</b></span></div>
+      <div style="display:flex;align-items:center;gap:11px"><div style="width:22px;height:22px;border-radius:50%;border:2px solid #E0D6C8;display:flex;align-items:center;justify-content:center"><div style="width:7px;height:7px;border-radius:50%;background:#F25C3B"></div></div><span style="font:600 14px 'Figtree';color:#6B5E50">Calculating SST &amp; service charge…</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- FRAME 3 — Review -->
+<div style="position:absolute;left:880px;top:172px;width:320px">
+  <div data-drags-parent="1" style="position:absolute;top:-23px;font:600 12px 'Figtree';color:#6B5E50">3 · Review &amp; adjust</div>
+  <div style="width:320px;background:#F6F1EA;border-radius:36px;box-shadow:0 16px 40px rgba(34,27,20,.13);overflow:hidden;border:1px solid rgba(34,27,20,.05)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px 4px;font:700 13px 'Figtree';color:#221B14;background:#fff"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;font:700 11px 'Figtree'"><span>5G</span><div style="width:18px;height:10px;border:1.5px solid #221B14;border-radius:3px;position:relative"><div style="position:absolute;top:1.5px;left:1.5px;bottom:1.5px;right:4px;background:#221B14;border-radius:1px"></div></div></div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 22px 14px;background:#fff">
+      <div style="width:32px;height:32px;border-radius:10px;background:#F3ECE2;display:flex;align-items:center;justify-content:center"><div style="width:9px;height:9px;border-left:2px solid #221B14;border-bottom:2px solid #221B14;transform:rotate(45deg);margin-left:3px"></div></div>
+      <div style="text-align:center"><div style="font:800 16px 'Bricolage Grotesque';color:#221B14">Nasi Lemak House</div><div style="font:500 11px 'Figtree';color:#6B5E50">29 Jun · 8:24 PM</div></div>
+      <div style="font:700 13px 'Figtree';color:#F25C3B">Edit</div>
+    </div>
+    <div style="padding:14px 18px 8px;max-height:300px;overflow:hidden">
+      <div style="background:#fff;border-radius:18px;padding:6px 6px;box-shadow:0 4px 14px rgba(34,27,20,.05)">
+        <div style="display:flex;align-items:center;gap:11px;padding:11px 12px;border-bottom:1px solid #F1EAE0"><div style="min-width:26px;height:26px;border-radius:8px;background:#FDEAE3;color:#F25C3B;font:700 12px 'Figtree';display:flex;align-items:center;justify-content:center">2×</div><div style="flex:1;font:600 14px 'Figtree';color:#221B14">Nasi Lemak Ayam</div><div style="font:700 14px 'Figtree';color:#221B14">25.00</div></div>
+        <div style="display:flex;align-items:center;gap:11px;padding:11px 12px;border-bottom:1px solid #F1EAE0"><div style="min-width:26px;height:26px;border-radius:8px;background:#FDEAE3;color:#F25C3B;font:700 12px 'Figtree';display:flex;align-items:center;justify-content:center">1×</div><div style="flex:1;font:600 14px 'Figtree';color:#221B14">Sambal Sotong</div><div style="font:700 14px 'Figtree';color:#221B14">18.00</div></div>
+        <div style="display:flex;align-items:center;gap:11px;padding:11px 12px;border-bottom:1px solid #F1EAE0"><div style="min-width:26px;height:26px;border-radius:8px;background:#FDEAE3;color:#F25C3B;font:700 12px 'Figtree';display:flex;align-items:center;justify-content:center">3×</div><div style="flex:1;font:600 14px 'Figtree';color:#221B14">Teh Tarik</div><div style="font:700 14px 'Figtree';color:#221B14">8.40</div></div>
+        <div style="display:flex;align-items:center;gap:11px;padding:11px 12px"><div style="min-width:26px;height:26px;border-radius:8px;background:#FDEAE3;color:#F25C3B;font:700 12px 'Figtree';display:flex;align-items:center;justify-content:center">2×</div><div style="flex:1;font:600 14px 'Figtree';color:#221B14">Milo Ais</div><div style="font:700 14px 'Figtree';color:#221B14">9.00</div></div>
+      </div>
+      <div style="text-align:center;padding:12px;font:700 13px 'Figtree';color:#F25C3B">+ Add an item</div>
+      <div style="background:#fff;border-radius:18px;padding:14px 16px;box-shadow:0 4px 14px rgba(34,27,20,.05)">
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font:500 13px 'Figtree';color:#6B5E50"><span>Subtotal</span><span style="color:#221B14;font-weight:600">RM 96.90</span></div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font:500 13px 'Figtree';color:#6B5E50"><span>SST 6%</span><span style="color:#221B14;font-weight:600">RM 5.81</span></div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font:500 13px 'Figtree';color:#6B5E50"><span>Service charge 10%</span><span style="color:#221B14;font-weight:600">RM 9.69</span></div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0 9px;font:500 13px 'Figtree';color:#6B5E50;border-bottom:1px dashed #E0D6C8"><span>Rounding adj.</span><span style="color:#221B14;font-weight:600">+RM 0.00</span></div>
+        <div style="display:flex;justify-content:space-between;padding:11px 0 2px;align-items:baseline"><span style="font:800 16px 'Bricolage Grotesque';color:#221B14">Total</span><span style="font:800 20px 'Bricolage Grotesque';color:#F25C3B">RM 112.40</span></div>
+      </div>
+    </div>
+    <div style="padding:6px 18px 22px"><div style="background:#F25C3B;color:#fff;border-radius:16px;padding:16px;text-align:center;font:700 15px 'Figtree';box-shadow:0 8px 20px rgba(242,92,59,.32)">Share the split →</div></div>
+  </div>
+</div>
+
+<!-- FRAME 4 — Share -->
+<div style="position:absolute;left:1280px;top:172px;width:320px">
+  <div data-drags-parent="1" style="position:absolute;top:-23px;font:600 12px 'Figtree';color:#6B5E50">4 · Share the link</div>
+  <div style="width:320px;background:#fff;border-radius:36px;box-shadow:0 16px 40px rgba(34,27,20,.13);overflow:hidden;border:1px solid rgba(34,27,20,.05)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px 4px;font:700 13px 'Figtree';color:#221B14"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;font:700 11px 'Figtree'"><span>5G</span><div style="width:18px;height:10px;border:1.5px solid #221B14;border-radius:3px;position:relative"><div style="position:absolute;top:1.5px;left:1.5px;bottom:1.5px;right:4px;background:#221B14;border-radius:1px"></div></div></div></div>
+    <div style="padding:22px 24px 8px;text-align:center">
+      <div style="width:62px;height:62px;border-radius:50%;background:#FDEAE3;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;position:relative"><div style="width:20px;height:12px;border-left:3px solid #18A07A;border-bottom:3px solid #18A07A;transform:rotate(-45deg);margin-top:-4px"></div><div style="position:absolute;top:6px;right:10px;width:5px;height:5px;border-radius:50%;background:#F25C3B"></div><div style="position:absolute;bottom:8px;left:8px;width:4px;height:4px;border-radius:50%;background:#E8A02D"></div></div>
+      <div style="font:800 24px 'Bricolage Grotesque';color:#221B14;letter-spacing:-.02em">Split is ready!</div>
+      <div style="font:500 13px 'Figtree';color:#6B5E50;margin-top:5px">Send the link — friends pick what<br>they had & pay you back</div>
+    </div>
+    <div style="margin:14px 22px 0;display:flex;align-items:center;gap:10px;background:#F6F1EA;border:1px solid #ECE3D6;border-radius:14px;padding:13px 14px">
+      <div style="flex:1;font:600 14px 'Figtree';color:#221B14;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">split.my/r/8fK2</div>
+      <div style="background:#221B14;color:#fff;border-radius:10px;padding:8px 14px;font:700 12px 'Figtree'">Copy</div>
+    </div>
+    <div style="display:flex;gap:10px;padding:14px 22px 4px">
+      <div style="flex:1;background:#1FB155;color:#fff;border-radius:14px;padding:14px 0;text-align:center;font:700 13px 'Figtree'">WhatsApp</div>
+      <div style="flex:1;background:#2AA3E8;color:#fff;border-radius:14px;padding:14px 0;text-align:center;font:700 13px 'Figtree'">Telegram</div>
+    </div>
+    <div style="margin:16px 22px 4px;background:#F6F1EA;border-radius:18px;padding:15px 16px">
+      <div style="font:600 12px 'Figtree';color:#6B5E50;margin-bottom:10px">FRIENDS JOINED</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center">
+          <div style="width:32px;height:32px;border-radius:50%;background:#E0D6C8;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font:700 12px 'Figtree';color:#fff">?</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:#E0D6C8;border:2px solid #fff;margin-left:-10px;display:flex;align-items:center;justify-content:center;font:700 12px 'Figtree';color:#fff">?</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:#E0D6C8;border:2px solid #fff;margin-left:-10px;display:flex;align-items:center;justify-content:center;font:700 12px 'Figtree';color:#fff">?</div>
+          <div style="font:600 13px 'Figtree';color:#6B5E50;margin-left:12px">0 of 4</div>
+        </div>
+        <div style="font:700 13px 'Figtree';color:#F25C3B">Track →</div>
+      </div>
+    </div>
+    <div style="padding:14px 22px 24px"><div style="background:#fff;border:1.5px solid #221B14;color:#221B14;border-radius:16px;padding:15px;text-align:center;font:700 15px 'Figtree'">Track payments</div></div>
+  </div>
+</div>
+
+<!-- ===== SECTION B ===== -->
+<div style="position:absolute;left:80px;top:1010px;font:700 14px 'Figtree';color:#18A07A;letter-spacing:.08em">FRIEND · WEB LINK (NO APP)</div>
+
+<!-- FRAME 5 — Landing -->
+<div style="position:absolute;left:80px;top:1062px;width:320px">
+  <div data-drags-parent="1" style="position:absolute;top:-23px;font:600 12px 'Figtree';color:#6B5E50">5 · Open the link</div>
+  <div style="width:320px;background:#fff;border-radius:30px;box-shadow:0 16px 40px rgba(34,27,20,.13);overflow:hidden;border:1px solid rgba(34,27,20,.05)">
+    <div style="display:flex;align-items:center;gap:9px;padding:12px 14px;background:#EFE8DF">
+      <div style="display:flex;gap:5px"><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div></div>
+      <div style="flex:1;background:#fff;border-radius:9px;padding:7px 12px;font:500 12px 'Figtree';color:#6B5E50;display:flex;align-items:center;gap:7px"><div style="width:8px;height:7px;border:1.5px solid #18A07A;border-radius:2px;border-bottom:none;position:relative;margin-top:2px"></div>split.my/r/8fK2</div>
+    </div>
+    <div style="padding:30px 26px 22px;text-align:center;background:linear-gradient(180deg,#FDEAE3,#fff 70%)">
+      <div style="width:48px;height:48px;border-radius:50%;background:#F25C3B;color:#fff;display:flex;align-items:center;justify-content:center;font:700 18px 'Figtree';margin:0 auto 14px">A</div>
+      <div style="font:800 23px 'Bricolage Grotesque';color:#221B14;letter-spacing:-.02em;line-height:1.15">Aiman invited you<br>to split the bill</div>
+      <div style="margin-top:18px;background:#fff;border:1px solid #F1EAE0;border-radius:18px;padding:16px;box-shadow:0 6px 18px rgba(34,27,20,.06)">
+        <div style="font:700 16px 'Bricolage Grotesque';color:#221B14">Nasi Lemak House</div>
+        <div style="display:flex;justify-content:center;gap:8px;margin-top:6px;font:500 12px 'Figtree';color:#6B5E50"><span>8 items</span><span>·</span><span>Total RM 112.40</span></div>
+      </div>
+    </div>
+    <div style="padding:8px 26px 26px">
+      <div style="font:600 13px 'Figtree';color:#221B14;margin-bottom:8px">What's your name?</div>
+      <div style="background:#F6F1EA;border:1.5px solid #ECE3D6;border-radius:14px;padding:15px 16px;font:500 15px 'Figtree';color:#A99B89;margin-bottom:14px">e.g. Sara</div>
+      <div style="background:#F25C3B;color:#fff;border-radius:16px;padding:16px;text-align:center;font:700 15px 'Figtree';box-shadow:0 8px 20px rgba(242,92,59,.3)">Join the split →</div>
+      <div style="text-align:center;font:500 11px 'Figtree';color:#A99B89;margin-top:13px">No app needed · pay by DuitNow QR</div>
+    </div>
+  </div>
+</div>
+
+<!-- FRAME 6 — Pick items -->
+<div style="position:absolute;left:480px;top:1062px;width:320px">
+  <div data-drags-parent="1" style="position:absolute;top:-23px;font:600 12px 'Figtree';color:#6B5E50">6 · Tap what you had</div>
+  <div style="width:320px;background:#F6F1EA;border-radius:30px;box-shadow:0 16px 40px rgba(34,27,20,.13);overflow:hidden;border:1px solid rgba(34,27,20,.05)">
+    <div style="display:flex;align-items:center;gap:9px;padding:12px 14px;background:#EFE8DF">
+      <div style="display:flex;gap:5px"><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div></div>
+      <div style="flex:1;background:#fff;border-radius:9px;padding:7px 12px;font:500 12px 'Figtree';color:#6B5E50">split.my/r/8fK2</div>
+    </div>
+    <div style="padding:16px 20px 8px;background:#fff"><div style="font:800 20px 'Bricolage Grotesque';color:#221B14;letter-spacing:-.02em">Hi Sara 👋</div><div style="font:500 13px 'Figtree';color:#6B5E50;margin-top:2px">Tap the items you ordered</div></div>
+    <div style="padding:14px 16px 110px">
+      <div style="display:flex;align-items:center;gap:11px;background:#fff;border:2px solid #F25C3B;border-radius:16px;padding:13px 14px;margin-bottom:10px;box-shadow:0 4px 12px rgba(242,92,59,.12)">
+        <div style="width:24px;height:24px;border-radius:8px;background:#F25C3B;display:flex;align-items:center;justify-content:center"><div style="width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg);margin-top:-2px"></div></div>
+        <div style="flex:1"><div style="font:700 14px 'Figtree';color:#221B14">Nasi Lemak Ayam</div><div style="font:500 11px 'Figtree';color:#6B5E50">RM 12.50</div></div>
+        <div style="font:700 12px 'Figtree';color:#F25C3B">You</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:11px;background:#fff;border:1.5px solid #F1EAE0;border-radius:16px;padding:13px 14px;margin-bottom:10px">
+        <div style="width:24px;height:24px;border-radius:8px;border:2px solid #DCD2C4"></div>
+        <div style="flex:1"><div style="font:700 14px 'Figtree';color:#221B14">Milo Ais</div><div style="font:500 11px 'Figtree';color:#6B5E50">RM 4.50</div></div>
+        <div style="width:26px;height:26px;border-radius:50%;background:#18A07A;border:2px solid #fff;color:#fff;font:700 11px 'Figtree';display:flex;align-items:center;justify-content:center">J</div>
+      </div>
+      <div style="background:#fff;border:1.5px solid #ECE3D6;border-radius:16px;padding:13px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px"><div style="background:#EAF6F1;color:#18A07A;font:700 10px 'Figtree';padding:3px 8px;border-radius:6px">SHARED</div><div style="font:700 14px 'Figtree';color:#221B14">Sambal Sotong</div></div><div style="font:600 12px 'Figtree';color:#6B5E50">RM 18.00</div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center"><div style="width:24px;height:24px;border-radius:50%;background:#18A07A;border:2px solid #fff;color:#fff;font:700 10px 'Figtree';display:flex;align-items:center;justify-content:center">J</div><div style="width:24px;height:24px;border-radius:50%;background:#7C5CFF;border:2px solid #fff;margin-left:-8px;color:#fff;font:700 10px 'Figtree';display:flex;align-items:center;justify-content:center">L</div><span style="font:500 11px 'Figtree';color:#6B5E50;margin-left:9px">split 3 ways</span></div>
+          <div style="background:#F25C3B;color:#fff;border-radius:20px;padding:7px 14px;font:700 12px 'Figtree'">+ I'm in</div>
+        </div>
+      </div>
+    </div>
+    <div style="position:absolute;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #F1EAE0;padding:15px 20px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 -6px 18px rgba(34,27,20,.06)">
+      <div><div style="font:500 11px 'Figtree';color:#6B5E50">Your share</div><div style="font:800 19px 'Bricolage Grotesque';color:#221B14">RM 19.40</div></div>
+      <div style="background:#F25C3B;color:#fff;border-radius:14px;padding:13px 22px;font:700 14px 'Figtree'">Continue →</div>
+    </div>
+  </div>
+</div>
+
+<!-- FRAME 7 — Your share -->
+<div style="position:absolute;left:880px;top:1062px;width:320px">
+  <div data-drags-parent="1" style="position:absolute;top:-23px;font:600 12px 'Figtree';color:#6B5E50">7 · Your share</div>
+  <div style="width:320px;background:#fff;border-radius:30px;box-shadow:0 16px 40px rgba(34,27,20,.13);overflow:hidden;border:1px solid rgba(34,27,20,.05)">
+    <div style="display:flex;align-items:center;gap:9px;padding:12px 14px;background:#EFE8DF">
+      <div style="display:flex;gap:5px"><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div></div>
+      <div style="flex:1;background:#fff;border-radius:9px;padding:7px 12px;font:500 12px 'Figtree';color:#6B5E50">split.my/r/8fK2</div>
+    </div>
+    <div style="padding:20px 24px 6px"><div style="font:800 22px 'Bricolage Grotesque';color:#221B14;letter-spacing:-.02em">Here's your share</div><div style="font:500 13px 'Figtree';color:#6B5E50;margin-top:3px">Going to Aiman · Nasi Lemak House</div></div>
+    <div style="padding:14px 22px 6px">
+      <div style="background:#F6F1EA;border-radius:18px;padding:6px 14px">
+        <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #ECE3D6"><span style="font:600 13px 'Figtree';color:#221B14">Nasi Lemak Ayam</span><span style="font:700 13px 'Figtree';color:#221B14">RM 12.50</span></div>
+        <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #ECE3D6"><span style="font:600 13px 'Figtree';color:#221B14">Teh Tarik</span><span style="font:700 13px 'Figtree';color:#221B14">RM 2.80</span></div>
+        <div style="display:flex;justify-content:space-between;padding:11px 0"><div><span style="font:600 13px 'Figtree';color:#221B14">Sambal Sotong </span><span style="font:500 11px 'Figtree';color:#18A07A">· shared ÷3</span></div><span style="font:700 13px 'Figtree';color:#221B14">RM 6.00</span></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:12px 6px 4px;font:500 13px 'Figtree';color:#6B5E50"><span>Your part of SST &amp; service</span><span style="color:#221B14;font-weight:600">RM 3.10</span></div>
+    </div>
+    <div style="margin:8px 22px 0;background:#18A07A;border-radius:20px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font:700 14px 'Figtree';color:rgba(255,255,255,.85)">You owe</span>
+      <span style="font:800 26px 'Bricolage Grotesque';color:#fff;letter-spacing:-.02em">RM 24.40</span>
+    </div>
+    <div style="padding:16px 22px 24px"><div style="background:#F25C3B;color:#fff;border-radius:16px;padding:16px;text-align:center;font:700 15px 'Figtree';box-shadow:0 8px 20px rgba(242,92,59,.3)">Pay RM 24.40 →</div></div>
+  </div>
+</div>
+
+<!-- FRAME 8 — Pay DuitNow -->
+<div style="position:absolute;left:1280px;top:1062px;width:320px">
+  <div data-drags-parent="1" style="position:absolute;top:-23px;font:600 12px 'Figtree';color:#6B5E50">8 · Pay by DuitNow QR</div>
+  <div style="width:320px;background:#fff;border-radius:30px;box-shadow:0 16px 40px rgba(34,27,20,.13);overflow:hidden;border:1px solid rgba(34,27,20,.05)">
+    <div style="display:flex;align-items:center;gap:9px;padding:12px 14px;background:#EFE8DF">
+      <div style="display:flex;gap:5px"><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div><div style="width:9px;height:9px;border-radius:50%;background:#D8CDBC"></div></div>
+      <div style="flex:1;background:#fff;border-radius:9px;padding:7px 12px;font:500 12px 'Figtree';color:#6B5E50">split.my/r/8fK2</div>
+    </div>
+    <div style="padding:20px 24px 4px;text-align:center"><div style="font:500 13px 'Figtree';color:#6B5E50">Pay Aiman</div><div style="font:800 30px 'Bricolage Grotesque';color:#221B14;letter-spacing:-.02em;margin-top:2px">RM 24.40</div></div>
+    <div style="margin:14px 24px 0;background:#FBF7F2;border:1px solid #EFE6D8;border-radius:22px;padding:18px;text-align:center">
+      <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:14px"><div style="width:9px;height:9px;border-radius:50%;background:#F25C3B"></div><div style="font:800 13px 'Figtree';color:#221B14;letter-spacing:.04em">DuitNow QR</div></div>
+      <div style="background:#fff;border-radius:16px;padding:14px;display:inline-flex;box-shadow:0 6px 16px rgba(34,27,20,.08)">{{ payQR }}</div>
+      <div style="font:700 13px 'Figtree';color:#221B14;margin-top:14px">AIMAN BIN ABDULLAH</div>
+      <div style="font:500 11px 'Figtree';color:#6B5E50;margin-top:2px">Scan with any bank or e-wallet app</div>
+    </div>
+    <div style="padding:16px 24px 24px">
+      <div style="background:#18A07A;color:#fff;border-radius:16px;padding:15px;text-align:center;font:700 15px 'Figtree';margin-bottom:10px">I've paid ✓</div>
+      <div style="text-align:center;font:700 13px 'Figtree';color:#6B5E50">Save QR to gallery</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SECTION C ===== -->
+<div style="position:absolute;left:80px;top:1900px;font:700 14px 'Figtree';color:#7C5CFF;letter-spacing:.08em">OWNER · SETTINGS &amp; TRACKING</div>
+
+<!-- FRAME 9 — Payment settings -->
+<div style="position:absolute;left:80px;top:1952px;width:320px">
+  <div data-drags-parent="1" style="position:absolute;top:-23px;font:600 12px 'Figtree';color:#6B5E50">9 · Manage your DuitNow QR</div>
+  <div style="width:320px;background:#F6F1EA;border-radius:36px;box-shadow:0 16px 40px rgba(34,27,20,.13);overflow:hidden;border:1px solid rgba(34,27,20,.05)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px 4px;font:700 13px 'Figtree';color:#221B14;background:#fff"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;font:700 11px 'Figtree'"><span>5G</span><div style="width:18px;height:10px;border:1.5px solid #221B14;border-radius:3px;position:relative"><div style="position:absolute;top:1.5px;left:1.5px;bottom:1.5px;right:4px;background:#221B14;border-radius:1px"></div></div></div></div>
+    <div style="display:flex;align-items:center;gap:12px;padding:6px 22px 16px;background:#fff"><div style="width:32px;height:32px;border-radius:10px;background:#F3ECE2;display:flex;align-items:center;justify-content:center"><div style="width:9px;height:9px;border-left:2px solid #221B14;border-bottom:2px solid #221B14;transform:rotate(45deg);margin-left:3px"></div></div><div style="font:800 18px 'Bricolage Grotesque';color:#221B14">Payment settings</div></div>
+    <div style="padding:18px 20px 8px">
+      <div style="font:600 12px 'Figtree';color:#6B5E50;letter-spacing:.04em;margin-bottom:9px">YOUR DUITNOW QR</div>
+      <div style="background:#fff;border-radius:20px;padding:18px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 14px rgba(34,27,20,.05)">
+        <div style="background:#FBF7F2;border:1px solid #EFE6D8;border-radius:12px;padding:8px;display:inline-flex">{{ ownerQR }}</div>
+        <div style="flex:1"><div style="font:700 14px 'Figtree';color:#221B14">Shown to friends</div><div style="font:500 12px 'Figtree';color:#6B5E50;margin-top:3px">when they pay you back</div><div style="display:inline-block;margin-top:10px;background:#F3ECE2;color:#221B14;border-radius:9px;padding:8px 13px;font:700 12px 'Figtree'">Replace QR</div></div>
+      </div>
+    </div>
+    <div style="padding:14px 20px 8px">
+      <div style="font:600 12px 'Figtree';color:#6B5E50;letter-spacing:.04em;margin-bottom:9px">RECEIVING ACCOUNT</div>
+      <div style="background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 14px rgba(34,27,20,.05)">
+        <div style="display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid #F1EAE0">
+          <div style="width:38px;height:38px;border-radius:10px;background:#FFE08A;display:flex;align-items:center;justify-content:center;font:800 13px 'Figtree';color:#7A5A00">MB</div>
+          <div style="flex:1"><div style="font:700 14px 'Figtree';color:#221B14">Maybank</div><div style="font:500 12px 'Figtree';color:#6B5E50">•••• 6721</div></div>
+          <div style="width:22px;height:22px;border-radius:50%;border:2px solid #F25C3B;display:flex;align-items:center;justify-content:center"><div style="width:11px;height:11px;border-radius:50%;background:#F25C3B"></div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:15px 16px">
+          <div style="width:38px;height:38px;border-radius:10px;background:#D4E9FF;display:flex;align-items:center;justify-content:center;font:800 12px 'Figtree';color:#1F6FB5">TNG</div>
+          <div style="flex:1"><div style="font:700 14px 'Figtree';color:#221B14">Touch 'n Go eWallet</div><div style="font:500 12px 'Figtree';color:#6B5E50">•••• 4408</div></div>
+          <div style="width:22px;height:22px;border-radius:50%;border:2px solid #DCD2C4"></div>
+        </div>
+      </div>
+      <div style="text-align:center;padding:13px;font:700 13px 'Figtree';color:#F25C3B">+ Add account</div>
+    </div>
+    <div style="margin:4px 20px 22px;background:#fff;border-radius:18px;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 14px rgba(34,27,20,.05)">
+      <div><div style="font:700 14px 'Figtree';color:#221B14">Auto-fill amount</div><div style="font:500 11px 'Figtree';color:#6B5E50;margin-top:2px">QR opens with exact share</div></div>
+      <div style="width:46px;height:27px;border-radius:14px;background:#18A07A;position:relative"><div style="position:absolute;top:3px;right:3px;width:21px;height:21px;border-radius:50%;background:#fff"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- FRAME 10 — Track payments -->
+<div style="position:absolute;left:480px;top:1952px;width:320px">
+  <div data-drags-parent="1" style="position:absolute;top:-23px;font:600 12px 'Figtree';color:#6B5E50">10 · Track who's paid</div>
+  <div style="width:320px;background:#fff;border-radius:36px;box-shadow:0 16px 40px rgba(34,27,20,.13);overflow:hidden;border:1px solid rgba(34,27,20,.05)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px 4px;font:700 13px 'Figtree';color:#221B14"><span>9:41</span><div style="display:flex;gap:6px;align-items:center;font:700 11px 'Figtree'"><span>5G</span><div style="width:18px;height:10px;border:1.5px solid #221B14;border-radius:3px;position:relative"><div style="position:absolute;top:1.5px;left:1.5px;bottom:1.5px;right:4px;background:#221B14;border-radius:1px"></div></div></div></div>
+    <div style="padding:8px 24px 4px"><div style="font:800 20px 'Bricolage Grotesque';color:#221B14;letter-spacing:-.02em">Nasi Lemak House</div><div style="font:500 12px 'Figtree';color:#6B5E50">29 Jun · Total RM 112.40</div></div>
+    <div style="margin:14px 24px 0;background:#F6F1EA;border-radius:18px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px"><span style="font:800 18px 'Bricolage Grotesque';color:#18A07A">RM 76.40</span><span style="font:500 12px 'Figtree';color:#6B5E50">of RM 112.40 collected</span></div>
+      <div style="height:10px;border-radius:6px;background:#E6DCCD;overflow:hidden"><div style="width:68%;height:100%;background:#18A07A;border-radius:6px"></div></div>
+    </div>
+    <div style="padding:16px 20px 8px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:12px"><div style="width:38px;height:38px;border-radius:50%;background:#18A07A;color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Figtree'">S</div><div style="flex:1"><div style="font:700 14px 'Figtree';color:#221B14">Sara</div><div style="font:500 12px 'Figtree';color:#6B5E50">RM 24.40</div></div><div style="display:flex;align-items:center;gap:6px;background:#EAF6F1;border-radius:20px;padding:6px 11px"><div style="width:14px;height:14px;border-radius:50%;background:#18A07A;display:flex;align-items:center;justify-content:center"><div style="width:6px;height:3px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(-45deg);margin-top:-1px"></div></div><span style="font:700 11px 'Figtree';color:#18A07A">Paid</span></div></div>
+      <div style="display:flex;align-items:center;gap:12px"><div style="width:38px;height:38px;border-radius:50%;background:#7C5CFF;color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Figtree'">J</div><div style="flex:1"><div style="font:700 14px 'Figtree';color:#221B14">Jaz</div><div style="font:500 12px 'Figtree';color:#6B5E50">RM 27.80</div></div><div style="display:flex;align-items:center;gap:6px;background:#EAF6F1;border-radius:20px;padding:6px 11px"><div style="width:14px;height:14px;border-radius:50%;background:#18A07A;display:flex;align-items:center;justify-content:center"><div style="width:6px;height:3px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(-45deg);margin-top:-1px"></div></div><span style="font:700 11px 'Figtree';color:#18A07A">Paid</span></div></div>
+      <div style="display:flex;align-items:center;gap:12px"><div style="width:38px;height:38px;border-radius:50%;background:#E8A02D;color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Figtree'">L</div><div style="flex:1"><div style="font:700 14px 'Figtree';color:#221B14">Lim</div><div style="font:500 12px 'Figtree';color:#6B5E50">RM 16.00</div></div><div style="background:#FBEFD9;border-radius:20px;padding:6px 11px;font:700 11px 'Figtree';color:#B07A14">Pending</div></div>
+      <div style="display:flex;align-items:center;gap:12px;opacity:.7"><div style="width:38px;height:38px;border-radius:50%;background:#F25C3B;color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Figtree'">A</div><div style="flex:1"><div style="font:700 14px 'Figtree';color:#221B14">You (Aiman)</div><div style="font:500 12px 'Figtree';color:#6B5E50">RM 24.20 · your share</div></div></div>
+    </div>
+    <div style="padding:12px 20px 24px"><div style="background:#221B14;color:#fff;border-radius:16px;padding:15px;text-align:center;font:700 15px 'Figtree'">Nudge Lim on WhatsApp</div></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  qr(seed, cell) {
+    const size = 25;
+    let s = (seed * 2654435761) % 2147483647;
+    const rand = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+    const grid = Array.from({ length: size }, () => Array(size).fill(false));
+    const finder = (r0, c0) => {
+      for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) {
+        const edge = r === 0 || r === 6 || c === 0 || c === 6;
+        const inner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+        grid[r0 + r][c0 + c] = edge || inner;
+      }
+    };
+    finder(0, 0); finder(0, size - 7); finder(size - 7, 0);
+    const inFinder = (r, c) => (r < 8 && c < 8) || (r < 8 && c >= size - 8) || (r >= size - 8 && c < 8);
+    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+      if (!inFinder(r, c)) grid[r][c] = rand() > 0.5;
+    }
+    const px = cell || 5;
+    return React.createElement('div', {
+      'data-om-raster': '1',
+      style: { display: 'grid', gridTemplateColumns: `repeat(${size}, ${px}px)`, gridTemplateRows: `repeat(${size}, ${px}px)` }
+    }, grid.flatMap((row, ri) => row.map((v, ci) =>
+      React.createElement('div', { key: ri + '-' + ci, style: { width: px, height: px, background: v ? '#221B14' : 'transparent', borderRadius: v ? '1px' : 0 } })
+    )));
+  }
+  renderVals() {
+    return {
+      payQR: this.qr(7, 5.4),
+      ownerQR: this.qr(13, 3.4)
+    };
+  }
+}
+</script>
+</body>
+</html>

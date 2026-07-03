@@ -1,0 +1,21 @@
+{{define "partials/splits_list.html"}}
+{{range .Splits}}
+<a href="/splits/{{.Split.Slug}}/track" class="split-row tap">
+  <div class="split-row-head">
+    <div>
+      <div class="split-row-title">{{.Split.Merchant}}</div>
+      <div class="split-row-sub">{{dateFmt .Split.CreatedAt}} · {{rm .Split.TotalSen}} · {{rm .CollectedSen}} collected</div>
+    </div>
+    <button type="button" class="tap link" style="font-size:12px;padding:4px 8px"
+      hx-delete="/splits/{{.Split.Slug}}"
+      hx-target="closest .split-row"
+      hx-swap="outerHTML swap:200ms"
+      hx-confirm="Delete this split?"
+      onclick="event.preventDefault();event.stopPropagation()">Delete</button>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" style="width:{{percent .CollectedSen .Split.TotalSen}}%"></div></div>
+</a>
+{{else}}
+<p class="hint" style="font-size:13px;text-align:center;padding:8px">No saved splits yet</p>
+{{end}}
+{{end}}

@@ -1,0 +1,39 @@
+{{define "auth/callback.html"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signing in… · Pisah</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div id="app" class="app-shell" style="align-items:center;justify-content:center">
+  <div class="spin" role="status" aria-label="Signing in"></div>
+  <p class="muted" style="margin-top:16px">Signing you in…</p>
+</div>
+<script>
+(function(){
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const q = new URLSearchParams(location.search);
+  const access = hash.get('access_token') || q.get('access_token');
+  const refresh = hash.get('refresh_token') || q.get('refresh_token');
+  if (!access) {
+    document.getElementById('app').innerHTML = '<p class="muted">Sign-in failed. <a href="/signin">Try again</a></p>';
+    return;
+  }
+  fetch('/auth/session', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({access_token: access, refresh_token: refresh || ''})
+  }).then(r => {
+    if (!r.ok) throw new Error('session failed');
+    location.href = '/capture';
+  }).catch(() => {
+    document.getElementById('app').innerHTML = '<p class="muted">Sign-in failed. <a href="/signin">Try again</a></p>';
+  });
+})();
+</script>
+</body>
+</html>
+{{end}}

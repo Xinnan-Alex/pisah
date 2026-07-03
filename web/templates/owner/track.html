@@ -1,0 +1,41 @@
+{{define "owner/track.html"}}
+<div class="track-page" style="flex:1;display:flex;flex-direction:column">
+  <div class="topbar">
+    <a href="/capture" class="back-chip tap" aria-label="Back">←</a>
+    <div class="topbar-title">
+      <h1 class="display" style="font-size:20px">{{.Split.Merchant}}</h1>
+      <p class="muted" style="font-size:12px;margin-top:2px">{{dateFmt .Split.CreatedAt}} · {{rm .Split.TotalSen}} total</p>
+    </div>
+  </div>
+
+  <div class="pad pad-wide">
+    <div class="card" style="background:var(--cream);margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+        <span class="display" style="font-size:22px;color:var(--green)">{{rm .CollectedSen}}</span>
+        <span class="muted" style="font-size:13px">of {{rm .Split.TotalSen}} collected</span>
+      </div>
+      <div class="progress-bar" style="height:10px"><div class="progress-fill" style="width:{{percent .CollectedSen .Split.TotalSen}}%"></div></div>
+    </div>
+
+    <label class="hint" style="font-size:11px;letter-spacing:.5px;text-transform:uppercase">Share link</label>
+    <div class="card" style="margin:8px 0 16px">
+      <input readonly value="{{shareURL .Split.Slug}}" id="track-share-url" style="background:var(--cream);font-size:13px;padding:12px;margin-bottom:8px">
+      <button type="button" class="btn btn-sm tap" onclick="copyShareLink(document.getElementById('track-share-url').value)">Copy link</button>
+    </div>
+
+    <div id="track-panel" hx-ext="sse" sse-connect="/api/splits/{{.Split.Slug}}/events">
+      <div id="participants" sse-swap="message" hx-get="/splits/{{.Split.Slug}}/track/participants" hx-trigger="sse:message" hx-swap="innerHTML">
+        {{template "partials/track_participants.html" .}}
+      </div>
+    </div>
+  </div>
+
+  <div class="pad" style="padding-bottom:calc(24px + env(safe-area-inset-bottom))">
+    {{if .NudgeName}}
+    <button type="button" class="btn btn-dark tap" onclick="shareNative('{{shareURL .Split.Slug}}','Hey {{.NudgeName}}, friendly reminder to pay your share on Pisah 👉 {{shareURL .Split.Slug}}')">Nudge {{.NudgeName}}</button>
+    {{else if .AllPaid}}
+    <div style="background:#EAF6F1;color:var(--green);text-align:center;padding:16px;border-radius:16px;font-weight:700">All friends paid ✓</div>
+    {{end}}
+  </div>
+</div>
+{{end}}

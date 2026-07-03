@@ -1,0 +1,29 @@
+{{define "owner/signin.html"}}
+<div class="pad" style="flex:1;padding-top:80px;padding-bottom:40px">
+  <div style="margin-bottom:32px">
+    <h1 class="display" style="font-size:40px;font-weight:800">Pisah<span style="color:var(--orange)"> ·</span></h1>
+    <p class="muted" style="font-size:14px;margin-top:6px">Sign in to keep splitting</p>
+  </div>
+  {{if .Error}}
+  <div role="alert" style="background:#FDEAE3;color:var(--orange);padding:12px 14px;border-radius:12px;margin-bottom:16px;font-size:13px;font-weight:600">{{.Error}}</div>
+  {{end}}
+  <form method="post" action="/signin">
+    <label for="email" class="hint" style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">Email</label>
+    <input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}" style="margin-bottom:14px">
+    <label for="password" class="hint" style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required style="margin-bottom:18px">
+    <button type="submit" class="btn">Sign in</button>
+  </form>
+  {{if .GoogleURL}}
+  <div style="display:flex;align-items:center;gap:12px;margin:22px 0">
+    <div style="flex:1;height:1px;background:var(--border)"></div>
+    <span class="hint" style="font-size:12px">or</span>
+    <div style="flex:1;height:1px;background:var(--border)"></div>
+  </div>
+  <a href="{{.GoogleURL}}" class="btn btn-outline tap" style="display:flex;align-items:center;justify-content:center;gap:10px">
+    Continue with Google
+  </a>
+  {{end}}
+  <p class="hint" style="text-align:center;font-size:11px;margin-top:20px;line-height:1.5">No app needed for friends — they pay by DuitNow QR</p>
+</div>
+{{end}}

@@ -1,16 +1,19 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-The active code lives in `backend/`, which is a single Go module (`backend/go.mod`).
-- `main.go`, `handlers.go`, `store.go`, `ocr.go`, `jwks.go`: HTTP API, storage, auth, and OCR wiring.
+The Go server is a single module at the repo root (`go.mod`). It serves both the
+JSON API and the server-rendered web UI (owner + friend flows).
+- `main.go`, `handlers.go`, `store.go`, `storage.go`, `ocr.go`, `jwks.go`: HTTP API, storage, auth, and OCR wiring.
+- `web.go`, `web_handlers.go`, `web_auth.go`: server-rendered web UI handlers.
+- `web/templates/`, `web/static/`: HTML templates and CSS/JS assets (embedded via `go:embed`).
 - `share/`: pure split-math logic with unit tests.
-- `web/friend.html`: static friend-facing page.
 - `schema.sql`: database schema for Supabase Postgres.
 - `.env.example`: local configuration template.
+- `infra/`: Terraform + deploy script for AWS ECS/ECR.
 
 ## Build, Test, and Development Commands
-Run commands from `backend/`:
-- `make run` starts the API locally (loads `.env`).
+Run commands from the repo root:
+- `make run` starts the server locally (loads `.env`).
 - `make test` runs all tests, including the pure math package.
 - `psql "$DATABASE_URL" -f schema.sql` applies the schema to a local or Supabase database.
 
@@ -32,8 +35,8 @@ This repository currently has no Git commit history, so no repo-specific commit 
 PRs should include:
 - A clear summary of the change.
 - Notes on any schema, env, or API impact.
-- Screenshots or sample requests when `web/friend.html` or endpoint behavior changes.
+- Screenshots or sample requests when web UI (`web/`) or endpoint behavior changes.
 
 ## Security & Configuration Tips
-Copy `backend/.env.example` to `.env` and fill in `DATABASE_URL`, `SUPABASE_JWT_SECRET`, and AWS credentials before running locally.
+Copy `.env.example` to `.env` and fill in `DATABASE_URL`, `SUPABASE_JWT_SECRET`, and AWS credentials before running locally.
 Do not commit secrets. Open CORS and in-memory SSE behavior are deliberate simplifications; tighten them before production deployment.

@@ -1,5 +1,0 @@
-// Copy to DevConfig.swift and set your Mac's LAN IP (physical device) or localhost (simulator).
-// DevConfig.swift is gitignored — scheme env vars still override these when launching from Xcode.
-enum DevConfig {
-    static let pisahAPI = "http://REPLACE_WITH_LAN_IP:8080"
-}
