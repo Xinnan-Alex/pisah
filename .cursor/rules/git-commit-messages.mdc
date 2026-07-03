@@ -1,0 +1,68 @@
+---
+description: Conventional commit message format and best practices
+alwaysApply: true
+---
+
+# Git Commit Messages
+
+When creating commits, follow conventional commit format and these practices.
+
+## Commit hygiene
+
+- One purpose per commit; split unrelated changes
+- Commit early and often on feature branches
+- Write messages others (and future you) can understand
+
+## Format
+
+```
+<type>(<optional scope>): <subject>
+
+<optional body>
+
+<optional footer(s)>
+```
+
+## Subject line
+
+- Imperative, present tense, lowercase (e.g. "add", not "added" or "adds")
+- Max 50 characters; no trailing period; avoid unnecessary punctuation
+- Body (when needed): explain what and why, wrap at 72 characters
+- Blank line between subject and body
+
+## Types
+
+| Type | Use for |
+|------|---------|
+| `feat` | New user-facing feature |
+| `fix` | User-facing bug fix |
+| `docs` | Documentation only |
+| `style` | Formatting; no production logic change |
+| `refactor` | Code change that is not a fix or feature |
+| `test` | Tests only |
+| `chore` | Maintenance (e.g. .gitignore, tooling config) |
+| `build` | Build system or dependencies |
+| `perf` | Performance improvement |
+
+## Examples
+
+```
+fix: prevent racing of requests
+
+Introduce a request id and a reference to the latest request. Dismiss
+incoming responses other than from the latest request.
+
+Resolves: #123
+```
+
+```
+fix: remove string template from client code
+
+It is incompatible with IE
+```
+
+```
+docs: prepare CHANGELOG for version x.x.x
+```
+
+When drafting commit messages for the user, match this format exactly.
