@@ -42,23 +42,24 @@ func (s *Server) initWeb() error {
 	s.staticFS = static
 
 	funcs := template.FuncMap{
-		"rm":       formatRM,
-		"rmShort":  formatRMShort,
-		"esc":      template.HTMLEscapeString,
-		"initial":  initial,
-		"percent":  percentCollected,
-		"dateFmt":  dateFmt,
-		"timeFmt":  timeFmt,
-		"add":      func(a, b int64) int64 { return a + b },
-		"sub":      func(a, b int64) int64 { return a - b },
-		"json":     func(v any) template.JS { b, _ := json.Marshal(v); return template.JS(b) },
-		"b64json":  func(v any) string { b, _ := json.Marshal(v); return base64.StdEncoding.EncodeToString(b) },
-		"amount":   func(sen int64) string { return fmt.Sprintf("%.2f", float64(sen)/100) },
-		"shareURL": s.shareURL,
-		"avatarColor": avatarColor,
-		"upper":    strings.ToUpper,
-		"deref":    derefStr,
-		"hasQR":    func(p *string) bool { return p != nil && *p != "" },
+		"rm":              formatRM,
+		"rmShort":         formatRMShort,
+		"esc":             template.HTMLEscapeString,
+		"initial":         initial,
+		"percent":         percentCollected,
+		"dateFmt":         dateFmt,
+		"timeFmt":         timeFmt,
+		"add":             func(a, b int64) int64 { return a + b },
+		"sub":             func(a, b int64) int64 { return a - b },
+		"json":            func(v any) template.JS { b, _ := json.Marshal(v); return template.JS(b) },
+		"b64json":         func(v any) string { b, _ := json.Marshal(v); return base64.StdEncoding.EncodeToString(b) },
+		"amount":          func(sen int64) string { return fmt.Sprintf("%.2f", float64(sen)/100) },
+		"shareURL":        s.shareURL,
+		"shareDisplayURL": s.shareDisplayURL,
+		"avatarColor":     avatarColor,
+		"upper":           strings.ToUpper,
+		"deref":           derefStr,
+		"hasQR":           func(p *string) bool { return p != nil && *p != "" },
 	}
 
 	tmpl, err := template.New("").Funcs(funcs).ParseFS(webFS,
@@ -74,6 +75,13 @@ func (s *Server) initWeb() error {
 
 func (s *Server) shareURL(slug string) string {
 	return fmt.Sprintf("%s/r/%s", strings.TrimRight(s.cfg.PublicBaseURL, "/"), slug)
+}
+
+func (s *Server) shareDisplayURL(slug string) string {
+	u := s.shareURL(slug)
+	u = strings.TrimPrefix(u, "https://")
+	u = strings.TrimPrefix(u, "http://")
+	return u
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page, title string, data any) {

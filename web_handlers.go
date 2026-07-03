@@ -17,10 +17,10 @@ import (
 )
 
 type capturePageData struct {
-	Splits             []SplitSummary
-	OutstandingSen     int64
-	CollectedTotalSen  int64
-	ActiveCount        int
+	Splits            []SplitSummary
+	OutstandingSen    int64
+	CollectedTotalSen int64
+	ActiveCount       int
 }
 
 type reviewPageData struct {
@@ -35,16 +35,18 @@ type reviewPageData struct {
 }
 
 type sharePageData struct {
-	Slug     string
-	ShareURL string
+	Slug            string
+	ShareURL        string
+	ShareDisplayURL string
 }
 
 type trackPageData struct {
-	Split        Split
-	CollectedSen int64
-	Participants []Participant
-	NudgeName    string
-	AllPaid      bool
+	Split              Split
+	CollectedSen       int64
+	FriendsExpectedSen int64
+	Participants       []Participant
+	NudgeName          string
+	AllPaid            bool
 }
 
 type friendLandingData struct {
@@ -284,10 +286,11 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 	totalSen, _ := strconv.ParseInt(r.FormValue("total"), 10, 64)
 
 	var items []struct {
-		Name         string `json:"name"`
-		Qty          int    `json:"qty"`
-		UnitPriceSen int64  `json:"unitPriceSen"`
-		LineTotalSen int64  `json:"lineTotalSen"`
+		Name            string `json:"name"`
+		Qty             int    `json:"qty"`
+		UnitPriceSen    int64  `json:"unitPriceSen"`
+		LineTotalSen    int64  `json:"lineTotalSen"`
+		IncludedInSplit bool   `json:"includedInSplit"`
 	}
 	for i := 0; i < 100; i++ {
 		name := r.FormValue(fmt.Sprintf("item_name_%d", i))
@@ -302,12 +305,14 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 			qty = 1
 		}
 		lineSen, _ := strconv.ParseInt(r.FormValue(fmt.Sprintf("item_line_%d", i)), 10, 64)
+		included := r.FormValue(fmt.Sprintf("item_in_split_%d", i)) != "0"
 		items = append(items, struct {
-			Name         string `json:"name"`
-			Qty          int    `json:"qty"`
-			UnitPriceSen int64  `json:"unitPriceSen"`
-			LineTotalSen int64  `json:"lineTotalSen"`
-		}{Name: name, Qty: qty, UnitPriceSen: lineSen / int64(qty), LineTotalSen: lineSen})
+			Name            string `json:"name"`
+			Qty             int    `json:"qty"`
+			UnitPriceSen    int64  `json:"unitPriceSen"`
+			LineTotalSen    int64  `json:"lineTotalSen"`
+			IncludedInSplit bool   `json:"includedInSplit"`
+		}{Name: name, Qty: qty, UnitPriceSen: lineSen / int64(qty), LineTotalSen: lineSen, IncludedInSplit: included})
 	}
 	if len(items) == 0 || totalSen <= 0 {
 		http.Redirect(w, r, "/capture", http.StatusSeeOther)
@@ -334,7 +339,16 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 		ServiceSen:  serviceSen,
 		RoundingSen: roundingSen,
 		TotalSen:    totalSen,
-		Items:       items,
+	}
+	for _, it := range items {
+		included := it.IncludedInSplit
+		in.Items = append(in.Items, struct {
+			Name            string `json:"name"`
+			Qty             int    `json:"qty"`
+			UnitPriceSen    int64  `json:"unitPriceSen"`
+			LineTotalSen    int64  `json:"lineTotalSen"`
+			IncludedInSplit *bool  `json:"includedInSplit"`
+		}{Name: it.Name, Qty: it.Qty, UnitPriceSen: it.UnitPriceSen, LineTotalSen: it.LineTotalSen, IncludedInSplit: &included})
 	}
 	if prof, err := s.store.GetOwnerProfile(r.Context(), ownerID); err == nil {
 		in.OwnerQRURL = prof.OwnerQRURL
@@ -352,7 +366,11 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not create split", err)
 		return
 	}
-	data := sharePageData{Slug: split.Slug, ShareURL: s.shareURL(split.Slug)}
+	data := sharePageData{
+		Slug:            split.Slug,
+		ShareURL:        s.shareURL(split.Slug),
+		ShareDisplayURL: s.shareDisplayURL(split.Slug),
+	}
 	s.render(w, r, "owner/share.html", "Share split · Pisah", data)
 }
 
@@ -408,7 +426,11 @@ func (s *Server) loadTrackPageData(r *http.Request) (trackPageData, bool) {
 	if err != nil {
 		return trackPageData{}, false
 	}
-	data := trackPageData{Split: split, CollectedSen: collected, Participants: parts}
+	expected, err := s.store.FriendsExpectedSen(r.Context(), split.ID)
+	if err != nil {
+		return trackPageData{}, false
+	}
+	data := trackPageData{Split: split, CollectedSen: collected, FriendsExpectedSen: expected, Participants: parts}
 	allPaid := true
 	for _, p := range parts {
 		if p.IsOwner {
@@ -528,7 +550,7 @@ func (s *Server) handleFriendLanding(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Split not found", http.StatusNotFound)
 		return
 	}
-	items, _ := s.store.ListItems(r.Context(), split.ID)
+	items, _ := s.store.ListSplittableItems(r.Context(), split.ID)
 	data := friendLandingData{Slug: slug, Split: split, ItemCount: len(items)}
 	s.render(w, r, "friend/landing.html", "Join split · Pisah", data)
 }
@@ -577,16 +599,18 @@ func (s *Server) handleFriendPickData(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "split not found")
 		return
 	}
-	items, err := s.store.ListItems(r.Context(), split.ID)
+	items, err := s.store.ListSplittableItems(r.Context(), split.ID)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "could not load items")
 		return
 	}
+	splittableSub, _ := s.store.SplittableSubtotalSen(r.Context(), split.ID)
 	selected := selectedIDs(items, p.Name)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items":   items,
-		"owedSen": p.OwedSen,
-		"selected": selected,
+		"items":                 items,
+		"owedSen":               p.OwedSen,
+		"selected":              selected,
+		"splittableSubtotalSen": splittableSub,
 	})
 }
 
@@ -607,14 +631,26 @@ func (s *Server) buildFriendPickData(r *http.Request, slug string, p Participant
 	if err != nil {
 		return friendPickData{}, err
 	}
-	items, err := s.store.ListItems(r.Context(), split.ID)
+	items, err := s.store.ListSplittableItems(r.Context(), split.ID)
 	if err != nil {
 		return friendPickData{}, err
+	}
+	splittableSub, err := s.store.SplittableSubtotalSen(r.Context(), split.ID)
+	if err != nil {
+		return friendPickData{}, err
+	}
+	splitMap := map[string]any{
+		"id":                    split.ID,
+		"slug":                  split.Slug,
+		"merchant":              split.Merchant,
+		"subtotalSen":           split.SubtotalSen,
+		"splittableSubtotalSen": splittableSub,
+		"totalSen":              split.TotalSen,
 	}
 	cfg := map[string]any{
 		"slug":        slug,
 		"me":          p.Name,
-		"split":       split,
+		"split":       splitMap,
 		"items":       items,
 		"taxTotalSen": split.TaxTotalSen(),
 		"selected":    selectedIDs(items, p.Name),
@@ -645,7 +681,7 @@ func (s *Server) buildShareBreakdown(r *http.Request, slug string, participantID
 	if err != nil {
 		return shareBreakdownView{}, err
 	}
-	items, err := s.store.ListItems(r.Context(), split.ID)
+	items, err := s.store.ListSplittableItems(r.Context(), split.ID)
 	if err != nil {
 		return shareBreakdownView{}, err
 	}

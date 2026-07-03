@@ -43,14 +43,15 @@ type SplitSummary struct {
 func (s Split) TaxTotalSen() int64 { return s.SSTSen + s.ServiceSen + s.RoundingSen }
 
 type Item struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Qty          int      `json:"qty"`
-	UnitPriceSen int64    `json:"unitPriceSen"`
-	LineTotalSen int64    `json:"lineTotalSen"`
-	Position     int      `json:"position"`
-	Claimants    int      `json:"claimants"` // how many participants claimed it
-	ClaimedBy    []string `json:"claimedBy"` // claimant names, for the friend UI
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Qty             int      `json:"qty"`
+	UnitPriceSen    int64    `json:"unitPriceSen"`
+	LineTotalSen    int64    `json:"lineTotalSen"`
+	Position        int      `json:"position"`
+	IncludedInSplit bool     `json:"includedInSplit"`
+	Claimants       int      `json:"claimants"` // how many participants claimed it
+	ClaimedBy       []string `json:"claimedBy"` // claimant names, for the friend UI
 }
 
 type Participant struct {
@@ -73,10 +74,11 @@ type CreateSplitInput struct {
 	RoundingSen int64      `json:"roundingSen"`
 	TotalSen    int64      `json:"totalSen"`
 	Items       []struct {
-		Name         string `json:"name"`
-		Qty          int    `json:"qty"`
-		UnitPriceSen int64  `json:"unitPriceSen"`
-		LineTotalSen int64  `json:"lineTotalSen"`
+		Name            string `json:"name"`
+		Qty             int    `json:"qty"`
+		UnitPriceSen    int64  `json:"unitPriceSen"`
+		LineTotalSen    int64  `json:"lineTotalSen"`
+		IncludedInSplit *bool  `json:"includedInSplit"`
 	} `json:"items"`
 }
 
@@ -110,10 +112,14 @@ func (st *Store) CreateSplit(ctx context.Context, ownerID, slug string, in Creat
 		if qty < 1 {
 			qty = 1
 		}
+		included := true
+		if it.IncludedInSplit != nil {
+			included = *it.IncludedInSplit
+		}
 		if _, err = tx.Exec(ctx, `
-			insert into items (split_id, name, qty, unit_price_sen, line_total_sen, position)
-			values ($1,$2,$3,$4,$5,$6)`,
-			s.ID, it.Name, qty, it.UnitPriceSen, it.LineTotalSen, i); err != nil {
+			insert into items (split_id, name, qty, unit_price_sen, line_total_sen, position, included_in_split)
+			values ($1,$2,$3,$4,$5,$6,$7)`,
+			s.ID, it.Name, qty, it.UnitPriceSen, it.LineTotalSen, i, included); err != nil {
 			return Split{}, err
 		}
 	}
@@ -150,7 +156,7 @@ func (st *Store) ListOwnerSplits(ctx context.Context, ownerID string) ([]SplitSu
 	rows, err := st.pool.Query(ctx, `
 		select s.id, s.slug, s.merchant, s.owner_name, s.owner_qr_url, s.captured_at,
 		       s.subtotal_sen, s.sst_sen, s.service_sen, s.rounding_sen, s.total_sen, s.created_at,
-		       coalesce((select sum(owed_sen) from participants where split_id = s.id and paid), 0)
+		       coalesce((select sum(owed_sen) from participants where split_id = s.id and paid and not is_owner), 0)
 		from splits s
 		where s.owner_id = $1
 		order by s.created_at desc
@@ -189,13 +195,25 @@ func (st *Store) DeleteSplit(ctx context.Context, splitID, ownerID string) error
 // ---- items ----
 
 func (st *Store) ListItems(ctx context.Context, splitID string) ([]Item, error) {
+	return st.listItems(ctx, splitID, false)
+}
+
+func (st *Store) ListSplittableItems(ctx context.Context, splitID string) ([]Item, error) {
+	return st.listItems(ctx, splitID, true)
+}
+
+func (st *Store) listItems(ctx context.Context, splitID string, splittableOnly bool) ([]Item, error) {
+	filter := ""
+	if splittableOnly {
+		filter = " and i.included_in_split = true"
+	}
 	rows, err := st.pool.Query(ctx, `
-		select i.id, i.name, i.qty, i.unit_price_sen, i.line_total_sen, i.position,
+		select i.id, i.name, i.qty, i.unit_price_sen, i.line_total_sen, i.position, i.included_in_split,
 		       coalesce(array_agg(p.name) filter (where p.name is not null), '{}') as claimed_by
 		from items i
 		left join claims c on c.item_id = i.id
 		left join participants p on p.id = c.participant_id
-		where i.split_id = $1
+		where i.split_id = $1`+filter+`
 		group by i.id
 		order by i.position`, splitID)
 	if err != nil {
@@ -207,13 +225,22 @@ func (st *Store) ListItems(ctx context.Context, splitID string) ([]Item, error) 
 	for rows.Next() {
 		var it Item
 		if err := rows.Scan(&it.ID, &it.Name, &it.Qty, &it.UnitPriceSen, &it.LineTotalSen,
-			&it.Position, &it.ClaimedBy); err != nil {
+			&it.Position, &it.IncludedInSplit, &it.ClaimedBy); err != nil {
 			return nil, err
 		}
 		it.Claimants = len(it.ClaimedBy)
 		out = append(out, it)
 	}
 	return out, rows.Err()
+}
+
+func (st *Store) SplittableSubtotalSen(ctx context.Context, splitID string) (int64, error) {
+	var sum int64
+	err := st.pool.QueryRow(ctx, `
+		select coalesce(sum(line_total_sen), 0)
+		from items where split_id = $1 and included_in_split = true`, splitID,
+	).Scan(&sum)
+	return sum, err
 }
 
 // ---- participants ----
@@ -258,7 +285,9 @@ func (st *Store) SetClaims(ctx context.Context, splitID, participantID string, i
 		// Guard: only items belonging to this split can be claimed.
 		if _, err = tx.Exec(ctx, `
 			insert into claims (participant_id, item_id)
-			select $1, $2 where exists (select 1 from items where id = $2 and split_id = $3)
+			select $1, $2 where exists (
+				select 1 from items where id = $2 and split_id = $3 and included_in_split = true
+			)
 			on conflict do nothing`, participantID, id, splitID); err != nil {
 			return err
 		}
@@ -271,17 +300,27 @@ func (st *Store) SetClaims(ctx context.Context, splitID, participantID string, i
 
 // recomputeOwedTx recalculates owed_sen for every participant in the split.
 func recomputeOwedTx(ctx context.Context, tx pgx.Tx, splitID string) error {
-	var sub, sst, svc, rnd int64
+	var sst, svc, rnd int64
 	if err := tx.QueryRow(ctx,
-		`select subtotal_sen, sst_sen, service_sen, rounding_sen from splits where id = $1`, splitID,
-	).Scan(&sub, &sst, &svc, &rnd); err != nil {
+		`select sst_sen, service_sen, rounding_sen from splits where id = $1`, splitID,
+	).Scan(&sst, &svc, &rnd); err != nil {
 		return err
 	}
 	taxTotal := sst + svc + rnd
 
+	var splittableSub int64
+	if err := tx.QueryRow(ctx, `
+		select coalesce(sum(line_total_sen), 0)
+		from items where split_id = $1 and included_in_split = true`, splitID,
+	).Scan(&splittableSub); err != nil {
+		return err
+	}
+
 	lineTotal := map[string]int64{}
 	claimants := map[string]int{}
-	rows, err := tx.Query(ctx, `select id, line_total_sen from items where split_id = $1`, splitID)
+	rows, err := tx.Query(ctx, `
+		select id, line_total_sen from items
+		where split_id = $1 and included_in_split = true`, splitID)
 	if err != nil {
 		return err
 	}
@@ -303,7 +342,7 @@ func recomputeOwedTx(ctx context.Context, tx pgx.Tx, splitID string) error {
 	crows, err := tx.Query(ctx, `
 		select c.participant_id, c.item_id
 		from claims c join items i on i.id = c.item_id
-		where i.split_id = $1`, splitID)
+		where i.split_id = $1 and i.included_in_split = true`, splitID)
 	if err != nil {
 		return err
 	}
@@ -326,7 +365,7 @@ func recomputeOwedTx(ctx context.Context, tx pgx.Tx, splitID string) error {
 		for _, iid := range itemIDs {
 			items = append(items, share.Item{LineTotalSen: lineTotal[iid], Claimants: claimants[iid]})
 		}
-		owed := share.Owed(share.ClaimedSen(items), sub, taxTotal)
+		owed := share.Owed(share.ClaimedSen(items), splittableSub, taxTotal)
 		if _, err := tx.Exec(ctx, `update participants set owed_sen = $1 where id = $2`, owed, pid); err != nil {
 			return err
 		}
@@ -427,11 +466,20 @@ func (st *Store) SetAutoFillAmount(ctx context.Context, ownerID string, autoFill
 	return p, err
 }
 
-// CollectedSen sums what paid participants have settled.
+// CollectedSen sums what paid friends have settled.
 func (st *Store) CollectedSen(ctx context.Context, splitID string) (int64, error) {
 	var sum int64
 	err := st.pool.QueryRow(ctx,
-		`select coalesce(sum(owed_sen),0) from participants where split_id = $1 and paid`, splitID,
+		`select coalesce(sum(owed_sen),0) from participants where split_id = $1 and paid and not is_owner`, splitID,
+	).Scan(&sum)
+	return sum, err
+}
+
+// FriendsExpectedSen is the total owed by non-owner participants.
+func (st *Store) FriendsExpectedSen(ctx context.Context, splitID string) (int64, error) {
+	var sum int64
+	err := st.pool.QueryRow(ctx,
+		`select coalesce(sum(owed_sen),0) from participants where split_id = $1 and not is_owner`, splitID,
 	).Scan(&sum)
 	return sum, err
 }

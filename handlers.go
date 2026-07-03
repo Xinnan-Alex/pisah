@@ -141,10 +141,11 @@ func (s *Server) handleCreateSplit(w http.ResponseWriter, r *http.Request) {
 	)
 
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"id":       split.ID,
-		"slug":     split.Slug,
-		"shareUrl": fmt.Sprintf("%s/r/%s", s.cfg.PublicBaseURL, split.Slug),
-		"split":    split,
+		"id":              split.ID,
+		"slug":            split.Slug,
+		"shareUrl":        s.shareURL(split.Slug),
+		"shareDisplayUrl": s.shareDisplayURL(split.Slug),
+		"split":           split,
 	})
 }
 
@@ -159,9 +160,10 @@ func (s *Server) handleListMySplits(w http.ResponseWriter, r *http.Request) {
 	out := make([]map[string]any, 0, len(summaries))
 	for _, sum := range summaries {
 		out = append(out, map[string]any{
-			"split":        sum.Split,
-			"shareUrl":     fmt.Sprintf("%s/r/%s", s.cfg.PublicBaseURL, sum.Split.Slug),
-			"collectedSen": sum.CollectedSen,
+			"split":           sum.Split,
+			"shareUrl":        s.shareURL(sum.Split.Slug),
+			"shareDisplayUrl": s.shareDisplayURL(sum.Split.Slug),
+			"collectedSen":    sum.CollectedSen,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"splits": out})
@@ -197,7 +199,7 @@ func (s *Server) handleGetSplit(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "split not found")
 		return
 	}
-	items, err := s.store.ListItems(r.Context(), split.ID)
+	items, err := s.store.ListSplittableItems(r.Context(), split.ID)
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load items", err)
 		return
@@ -266,7 +268,7 @@ func (s *Server) writeShareResponse(w http.ResponseWriter, r *http.Request, spli
 		writeErr(w, http.StatusNotFound, "split not found")
 		return
 	}
-	items, err := s.store.ListItems(r.Context(), split.ID)
+	items, err := s.store.ListSplittableItems(r.Context(), split.ID)
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load items", err)
 		return
@@ -381,10 +383,16 @@ func (s *Server) handleTrack(w http.ResponseWriter, r *http.Request) {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load collected total", err)
 		return
 	}
+	expected, err := s.store.FriendsExpectedSen(r.Context(), split.ID)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load expected total", err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"split":        split,
-		"collectedSen": collected,
-		"participants": parts,
+		"split":              split,
+		"collectedSen":       collected,
+		"friendsExpectedSen": expected,
+		"participants":       parts,
 	})
 }
 

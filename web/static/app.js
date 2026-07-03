@@ -82,7 +82,13 @@ function registerAlpineComponents(Alpine) {
       this.serviceSen = data.serviceSen || 0;
       this.roundingSen = data.roundingSen || 0;
       this.totalSen = data.totalSen || 0;
-      this.items = Array.isArray(data.items) ? data.items : [];
+      this.items = Array.isArray(data.items) ? data.items.map(it => ({
+        ...it,
+        includedInSplit: it.includedInSplit !== false,
+      })) : [];
+    },
+    get splittableSubtotalSen() {
+      return this.items.reduce((s, it) => s + (it.includedInSplit ? (parseInt(it.lineTotalSen, 10) || 0) : 0), 0);
     },
     get taxTotal() { return this.sstSen + this.serviceSen + this.roundingSen; },
     get computedTotal() {
@@ -91,7 +97,7 @@ function registerAlpineComponents(Alpine) {
       return itemsSum + this.taxTotal;
     },
     addItem() {
-      this.items.push({ name: '', qty: 1, unitPriceSen: 0, lineTotalSen: 0 });
+      this.items.push({ name: '', qty: 1, unitPriceSen: 0, lineTotalSen: 0, includedInSplit: true });
     },
     removeItem(i) { this.items.splice(i, 1); },
     syncLine(i) {
@@ -156,7 +162,7 @@ function registerAlpineComponents(Alpine) {
         lines.push({ name, amtSen: portion });
         claimed += portion;
       }
-      const sub = this.split?.subtotalSen || 0;
+      const sub = this.split?.splittableSubtotalSen ?? this.split?.subtotalSen ?? 0;
       const tax = this.taxTotalSen || 0;
       const owed = sub <= 0 ? claimed : claimed + roundDiv(claimed * tax, sub);
       return { lines, taxSen: owed - claimed, owedSen: owed, claimedSen: claimed };
@@ -174,6 +180,9 @@ function registerAlpineComponents(Alpine) {
         const d = await fetch('/r/' + this.slug + '/pick-data').then(x => x.json());
         this.items = d.items;
         this.owedSen = d.owedSen;
+        if (d.splittableSubtotalSen != null && this.split) {
+          this.split.splittableSubtotalSen = d.splittableSubtotalSen;
+        }
       } catch (e) {
         console.error(e);
       }
