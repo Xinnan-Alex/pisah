@@ -3,23 +3,28 @@
 <div x-data="receiptReview()" style="flex:1;display:flex;flex-direction:column;background:var(--cream)">
   <div class="topbar">
     <a href="/capture" class="back-chip tap" aria-label="Back">←</a>
-    <div class="topbar-title">
-      <div class="display" style="font-size:16px" x-text="merchant || 'Receipt'">{{.Merchant}}</div>
-      <div class="muted" style="font-size:11px">{{if .CapturedAt}}{{.CapturedAt}}{{else}}Just now{{end}}</div>
+    <div class="topbar-title" style="flex:1;min-width:0">
+      <input type="text" x-model="merchant" placeholder="Restaurant name" class="display" style="font-size:16px;width:100%;padding:6px 0;background:transparent;border:none;border-bottom:1px solid var(--border)">
+      <div class="muted" style="font-size:11px;margin-top:4px">{{if .CapturedAt}}{{.CapturedAt}}{{else}}Just now{{end}}</div>
     </div>
   </div>
 
   <form method="post" action="/splits" class="pad" style="flex:1;display:flex;flex-direction:column;padding-bottom:24px">
-    <input type="hidden" name="merchant" x-model="merchant" value="{{esc .Merchant}}">
+    <input type="hidden" name="merchant" x-model="merchant">
     <div class="card" style="margin-top:12px;padding:8px 16px">
       <template x-for="(it, i) in items" :key="i">
-        <div class="review-item">
+        <div class="review-item" :style="!it.includedInSplit ? 'opacity:.65' : ''">
           <span class="qty-tag" x-text="it.qty"></span>
           <div style="flex:1;min-width:0">
             <input type="text" :name="'item_name_'+i" x-model="it.name" style="padding:8px 10px;margin-bottom:6px;font-size:14px">
             <input type="hidden" :name="'item_qty_'+i" x-model="it.qty">
             <input type="hidden" :name="'item_line_'+i" x-model="it.lineTotalSen">
-            <input type="number" step="0.01" :value="(it.lineTotalSen/100).toFixed(2)" @input="it.lineTotalSen=Math.round(parseFloat($event.target.value||0)*100); it.unitPriceSen=Math.round(it.lineTotalSen/it.qty)" style="padding:8px 10px;font-size:13px;width:120px">
+            <input type="hidden" :name="'item_in_split_'+i" :value="it.includedInSplit ? '1' : '0'">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <input type="number" step="0.01" :value="(it.lineTotalSen/100).toFixed(2)" @input="it.lineTotalSen=Math.round(parseFloat($event.target.value||0)*100); it.unitPriceSen=Math.round(it.lineTotalSen/it.qty)" style="padding:8px 10px;font-size:13px;width:120px">
+              <button type="button" class="btn btn-sm tap" :class="it.includedInSplit ? 'btn-outline' : ''" style="font-size:12px;padding:6px 10px" @click="it.includedInSplit = !it.includedInSplit" x-text="it.includedInSplit ? 'Split' : 'Mine'"></button>
+              <span class="hint" style="font-size:11px" x-show="!it.includedInSplit">Yours — not shared</span>
+            </div>
           </div>
           <button type="button" class="link tap" @click="removeItem(i)" x-show="items.length>1" aria-label="Remove">×</button>
         </div>
@@ -32,6 +37,7 @@
       <input type="hidden" name="service" :value="serviceSen">
       <input type="hidden" name="rounding" :value="roundingSen">
       <div class="row"><span class="muted">Subtotal</span><span x-text="formatRM(subtotalSen || items.reduce((s,it)=>s+(+it.lineTotalSen||0),0))">{{rm .SubtotalSen}}</span></div>
+      <div class="row" x-show="splittableSubtotalSen < (subtotalSen || items.reduce((s,it)=>s+(+it.lineTotalSen||0),0))"><span class="muted">Friends split</span><span x-text="formatRM(splittableSubtotalSen)"></span></div>
       <div class="row"><span class="muted">SST</span><input type="number" step="0.01" :value="(sstSen/100).toFixed(2)" @input="sstSen=Math.round(parseFloat($event.target.value||0)*100)" style="width:100px;padding:8px;text-align:right"></div>
       <div class="row"><span class="muted">Service charge</span><input type="number" step="0.01" :value="(serviceSen/100).toFixed(2)" @input="serviceSen=Math.round(parseFloat($event.target.value||0)*100)" style="width:100px;padding:8px;text-align:right"></div>
       <div class="row"><span class="muted">Rounding</span><input type="number" step="0.01" :value="(roundingSen/100).toFixed(2)" @input="roundingSen=Math.round(parseFloat($event.target.value||0)*100)" style="width:100px;padding:8px;text-align:right"></div>

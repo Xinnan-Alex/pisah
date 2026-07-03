@@ -31,7 +31,8 @@ create table if not exists items (
     qty             int  not null default 1,
     unit_price_sen  bigint not null default 0,
     line_total_sen  bigint not null default 0,
-    position        int  not null default 0
+    position        int  not null default 0,
+    included_in_split boolean not null default true
 );
 create index if not exists items_split_idx on items(split_id);
 

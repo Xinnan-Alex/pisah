@@ -44,6 +44,21 @@ func TestOwed_nothingClaimed(t *testing.T) {
 	}
 }
 
+func TestOwed_splittableSubtotal(t *testing.T) {
+	// Bill subtotal RM 100, but RM 20 is owner-only; friends split RM 80.
+	// Tax RM 10 total. Friend claims RM 40 of splittable pool.
+	// Tax share = round(40 * 10 / 80) = 5 → owed RM 45.00.
+	splittableSub := int64(8000)
+	claimed := ClaimedSen([]Item{{LineTotalSen: 4000, Claimants: 1}})
+	if claimed != 4000 {
+		t.Fatalf("claimed = %d, want 4000", claimed)
+	}
+	owed := Owed(claimed, splittableSub, 1000)
+	if owed != 4500 {
+		t.Fatalf("owed = %d, want 4500", owed)
+	}
+}
+
 func TestOwed_zeroSubtotalDoesNotPanic(t *testing.T) {
 	if got := Owed(500, 0, 1550); got != 500 {
 		t.Fatalf("owed = %d, want 500 (no tax when subtotal unknown)", got)

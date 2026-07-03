@@ -78,4 +78,39 @@ func TestReviewPageEmbedsReceiptJSONOnce(t *testing.T) {
 	if strings.Contains(out, "Test Cafe") == false {
 		t.Fatal("expected merchant in page")
 	}
+	if !strings.Contains(out, `placeholder="Restaurant name"`) {
+		t.Fatal("expected editable merchant input")
+	}
+}
+
+func TestShareDisplayURLStripsScheme(t *testing.T) {
+	s := &Server{cfg: Config{PublicBaseURL: "https://pisah.leongxinnan.com"}}
+	got := s.shareDisplayURL("sLJi")
+	want := "pisah.leongxinnan.com/r/sLJi"
+	if got != want {
+		t.Fatalf("shareDisplayURL = %q, want %q", got, want)
+	}
+}
+
+func TestSharePageShowsShortURL(t *testing.T) {
+	s := &Server{cfg: Config{PublicBaseURL: "https://pisah.leongxinnan.com"}}
+	if err := s.initWeb(); err != nil {
+		t.Fatalf("initWeb: %v", err)
+	}
+	data := sharePageData{
+		Slug:            "sLJi",
+		ShareURL:        s.shareURL("sLJi"),
+		ShareDisplayURL: s.shareDisplayURL("sLJi"),
+	}
+	var buf bytes.Buffer
+	if err := s.templates.ExecuteTemplate(&buf, "owner/share.html", data); err != nil {
+		t.Fatalf("render share: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, `value="pisah.leongxinnan.com/r/sLJi"`) {
+		t.Fatalf("expected short display URL in input, got:\n%s", out)
+	}
+	if !strings.Contains(out, `data-full-url="https://pisah.leongxinnan.com/r/sLJi"`) {
+		t.Fatalf("expected full URL in data-full-url, got:\n%s", out)
+	}
 }
