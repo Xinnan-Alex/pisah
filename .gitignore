@@ -6,14 +6,8 @@
 !**/.env.*.example
 
 # go
-backend/pisah
-backend/server
-
-# ios build output
-ios/build/
-ios/Pisah/DevConfig.swift
-ios/Pisah.xcodeproj/project.xcworkspace/xcuserdata/
-ios/Pisah.xcodeproj/xcuserdata/
+/pisah
+/server
 
 # terraform
 **/.terraform/
@@ -22,6 +16,8 @@ ios/Pisah.xcodeproj/xcuserdata/
 *.tfvars
 !*.tfvars.example
 .terraform.lock.hcl
+*.tfplan
+tfplan
 
 # macos
 .DS_Store

@@ -1,0 +1,13 @@
+{{define "friend/done.html"}}
+<div role="status" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px 30px;background:linear-gradient(180deg,#EAF6F1,transparent)">
+  <div aria-hidden="true" style="width:88px;height:88px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;margin-bottom:22px;box-shadow:0 12px 30px rgba(24,160,122,.35)">
+    <div style="width:30px;height:17px;border-left:5px solid #fff;border-bottom:5px solid #fff;transform:rotate(-45deg);margin-top:-6px"></div>
+  </div>
+  <h1 class="display" style="font-size:26px">All done, {{.Me}}!</h1>
+  <div class="muted" style="font-size:14px;margin-top:8px;line-height:1.5">You marked <strong style="color:var(--ink)">{{rm .OwedSen}}</strong> as paid to {{.OwnerName}}.<br>They'll get a notification to confirm.</div>
+  <div class="card" style="margin-top:24px;text-align:left;width:100%">
+    <div style="font:700 15px 'Figtree'">{{.Merchant}}</div>
+    <div class="hint" style="font-size:12px;margin-top:4px">Split with {{.OwnerName}}</div>
+  </div>
+</div>
+{{end}}

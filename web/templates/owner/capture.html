@@ -1,0 +1,77 @@
+{{define "owner/capture.html"}}
+<div class="capture-page" style="flex:1;display:flex;flex-direction:column;min-height:0">
+<header class="pad" style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;padding-bottom:8px;flex:none">
+  <h1 class="display" style="font-size:22px">Pisah</h1>
+  <div style="display:flex;align-items:center">
+  <a href="/settings" class="tap" aria-label="Payment settings" style="width:36px;height:36px;border-radius:50%;background:var(--cream2);display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink);margin-right:8px">⚙</a>
+  <form method="post" action="/signout" style="margin:0"><button type="submit" class="tap" aria-label="Sign out" style="width:36px;height:36px;border-radius:50%;background:var(--cream2);border:none;color:var(--mut);cursor:pointer">↪</button></form>
+  </div>
+</header>
+
+<div class="capture-body pad">
+  <div class="capture-hero">
+    <h2 class="display" style="font-size:27px;line-height:1.15">Snap your receipt</h2>
+    <p class="muted" style="font-size:13px;margin-top:6px">We'll read every item with AI</p>
+  </div>
+
+  {{if .Splits}}
+  {{template "partials/summary_strip.html" .}}
+  <div class="capture-splits">
+    <div class="hint" style="font:600 11px 'Figtree';letter-spacing:.5px;text-transform:uppercase">Your splits</div>
+    <div id="splits-list">
+      {{template "partials/splits_list.html" .}}
+    </div>
+  </div>
+  {{end}}
+
+  <div class="viewfinder-section">
+    <form id="scan-form" class="scan-form" method="post" action="/scan" enctype="multipart/form-data">
+      <input id="receipt-camera" type="file" name="receipt" accept="image/*" capture="environment" hidden onchange="submitReceipt(this)">
+      <input id="receipt-album" type="file" name="receipt" accept="image/*" hidden onchange="submitReceipt(this)">
+
+      <label for="receipt-camera" class="viewfinder {{if .Splits}}viewfinder-compact{{end}} tap">
+        <div class="viewfinder-corners" aria-hidden="true">
+          <span class="corner corner-tl"></span><span class="corner corner-tr"></span>
+          <span class="corner corner-bl"></span><span class="corner corner-br"></span>
+        </div>
+        <div class="viewfinder-hint">Tap to take a photo</div>
+      </label>
+
+      <div class="capture-controls">
+        <label for="receipt-album" class="gallery-btn tap" aria-label="Choose receipt from album">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8.5" cy="10.5" r="1.5" fill="currentColor"/>
+            <path d="M3 16l5-5 4 4 3-3 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="gallery-label">Album</span>
+        </label>
+        <button type="button" class="shutter tap" onclick="document.getElementById('receipt-camera').click()" aria-label="Take photo">
+          <span class="shutter-inner"></span>
+        </button>
+        <div class="capture-controls-spacer" aria-hidden="true"></div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="scan-overlay" class="scan-overlay" hidden aria-hidden="true">
+  <div class="scan-overlay-inner pad">
+    <div class="viewfinder" style="min-height:240px;margin-bottom:24px">
+      <div class="scan-line" aria-hidden="true"></div>
+      <div class="scan-badge">
+        <span class="scan-badge-dot"></span>
+        AI reading
+      </div>
+    </div>
+    <h2 class="display" style="font-size:23px">Reading your receipt…</h2>
+    <p class="muted" style="font-size:13px;margin-top:6px">Hang tight, almost done</p>
+    <div style="margin-top:24px">
+      <div class="row"><span class="muted">Detect merchant</span><span class="scan-step" data-step="0">…</span></div>
+      <div class="row"><span class="muted">Find line items</span><span class="scan-step" data-step="1">…</span></div>
+      <div class="row"><span class="muted">Calculate SST &amp; service</span><span class="scan-step" data-step="2">…</span></div>
+    </div>
+  </div>
+</div>
+</div>
+{{end}}

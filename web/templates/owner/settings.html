@@ -1,0 +1,39 @@
+{{define "owner/settings.html"}}
+<div class="topbar">
+  <a href="/capture" class="back-chip tap" aria-label="Back">←</a>
+  <h1 class="display" style="font-size:18px">Payment settings</h1>
+</div>
+
+<div class="pad" style="flex:1;padding-bottom:32px">
+  <p class="hint" style="font:600 11px 'Figtree';letter-spacing:.5px;text-transform:uppercase;margin:16px 0 10px">Your DuitNow QR</p>
+  <div class="card" style="display:flex;gap:16px;align-items:center">
+    {{if hasQR .Profile.OwnerQRURL}}
+    <img src="/settings/qr-image" alt="Your DuitNow QR" style="width:88px;height:88px;object-fit:contain;border-radius:12px;background:var(--paper);border:1px solid #EFE6D8">
+    {{else}}
+    <div style="width:88px;height:88px;border-radius:12px;background:var(--cream);border:1px solid #EFE6D8;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mut);text-align:center;padding:8px">No QR</div>
+    {{end}}
+    <div>
+      <p class="muted" style="font-size:13px;line-height:1.4;margin:0 0 10px">Shown to friends when they pay you back</p>
+      <form hx-post="/settings/duitnow-qr" hx-target="#page" hx-swap="innerHTML" hx-encoding="multipart/form-data" enctype="multipart/form-data">
+        <label class="btn btn-sm tap" style="display:inline-block;width:auto;cursor:pointer">
+          {{if hasQR .Profile.OwnerQRURL}}Replace QR{{else}}Add QR{{end}}
+          <input type="file" name="qr" accept="image/*" style="display:none" onchange="this.form.requestSubmit()">
+        </label>
+      </form>
+    </div>
+  </div>
+
+  <p class="hint" style="font:600 11px 'Figtree';letter-spacing:.5px;text-transform:uppercase;margin:24px 0 10px">Payment preference</p>
+  <div class="card">
+    <form hx-put="/settings" hx-swap="none">
+      <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer">
+        <span>
+          <strong style="font-size:14px">Auto-fill amount</strong>
+          <div class="muted" style="font-size:12px;margin-top:4px">Remind friends to pay their exact share</div>
+        </span>
+        <input type="checkbox" name="autoFillAmount" value="true" {{if .Profile.AutoFillAmount}}checked{{end}} onchange="this.form.requestSubmit()" style="width:auto;accent-color:var(--green)">
+      </label>
+    </form>
+  </div>
+</div>
+{{end}}
