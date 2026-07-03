@@ -213,3 +213,65 @@ function initAlpineOnHtmx(e) {
 
 document.body.addEventListener('htmx:afterSwap', initAlpineOnHtmx);
 document.body.addEventListener('htmx:afterSettle', initAlpineOnHtmx);
+
+function readSummaryTotals() {
+  const strip = document.getElementById('summary-strip');
+  if (!strip) return null;
+  return {
+    outstandingSen: parseInt(strip.dataset.outstandingSen, 10) || 0,
+    collectedSen: parseInt(strip.dataset.collectedSen, 10) || 0,
+    activeCount: parseInt(strip.dataset.activeCount, 10) || 0,
+  };
+}
+
+function writeSummaryTotals(outstandingSen, collectedSen, activeCount) {
+  const strip = document.getElementById('summary-strip');
+  if (!strip) return;
+  strip.dataset.outstandingSen = outstandingSen;
+  strip.dataset.collectedSen = collectedSen;
+  strip.dataset.activeCount = activeCount;
+  const outEl = document.getElementById('summary-outstanding');
+  const colEl = document.getElementById('summary-collected');
+  const actEl = document.getElementById('summary-active');
+  if (outEl) outEl.textContent = formatRM(outstandingSen);
+  if (colEl) colEl.textContent = formatRM(collectedSen);
+  if (actEl) actEl.textContent = activeCount;
+}
+
+function hideCaptureSplitsSection() {
+  const strip = document.getElementById('summary-strip');
+  const section = document.getElementById('capture-splits');
+  if (strip) strip.hidden = true;
+  if (section) section.hidden = true;
+  document.querySelector('.viewfinder')?.classList.remove('viewfinder-compact');
+}
+
+function applySummaryAfterSplitDelete(row) {
+  const totalSen = parseInt(row.dataset.totalSen, 10) || 0;
+  const collectedSen = parseInt(row.dataset.collectedSen, 10) || 0;
+  const remainingSen = totalSen - collectedSen;
+  const totals = readSummaryTotals();
+  if (!totals) return false;
+
+  let { outstandingSen, collectedSen: collectedTotal, activeCount } = totals;
+  collectedTotal -= collectedSen;
+  if (remainingSen > 0) {
+    outstandingSen -= remainingSen;
+    activeCount -= 1;
+  }
+  writeSummaryTotals(outstandingSen, collectedTotal, activeCount);
+  return row.closest('#splits-list')?.querySelectorAll('.split-row').length === 1;
+}
+
+document.body.addEventListener('htmx:beforeSwap', (e) => {
+  const row = e.detail.target;
+  if (!row?.classList?.contains('split-row')) return;
+  const req = e.detail.requestConfig;
+  if (!req || req.verb !== 'delete') return;
+  if (e.detail.xhr.status !== 200) return;
+
+  const lastSplit = applySummaryAfterSplitDelete(row);
+  if (lastSplit) {
+    document.body.addEventListener('htmx:afterSwap', hideCaptureSplitsSection, { once: true });
+  }
+});
