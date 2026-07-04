@@ -1,7 +1,7 @@
 {{define "owner/track.html"}}
 <div class="track-page" style="flex:1;display:flex;flex-direction:column">
   <div class="topbar">
-    <a href="/capture" class="back-chip tap" aria-label="Back">←</a>
+    <a href="/capture" class="back-chip tap" aria-label="Back">{{template "icon-back"}}</a>
     <div class="topbar-title">
       <h1 class="display" style="font-size:20px">{{.Split.Merchant}}</h1>
       <p class="muted" style="font-size:12px;margin-top:2px">{{dateFmt .Split.CreatedAt}} · {{rm .Split.TotalSen}} total</p>

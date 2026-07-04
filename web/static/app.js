@@ -277,9 +277,7 @@ function writeSummaryTotals(outstandingSen, collectedSen, activeCount) {
 }
 
 function hideCaptureSplitsSection() {
-  const strip = document.getElementById('summary-strip');
   const section = document.getElementById('capture-splits');
-  if (strip) strip.hidden = true;
   if (section) section.hidden = true;
   document.querySelector('.viewfinder')?.classList.remove('viewfinder-compact');
 }

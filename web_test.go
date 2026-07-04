@@ -15,6 +15,7 @@ func TestWebTemplatesParse(t *testing.T) {
 	pages := []string{
 		"layout.html",
 		"owner/signin.html",
+		"owner/signup.html",
 		"owner/capture.html",
 		"owner/review.html",
 		"owner/share.html",
@@ -112,6 +113,33 @@ func TestCapturePageOnboardingAndQRGate(t *testing.T) {
 			if !strings.Contains(out, want) {
 				t.Fatalf("expected %q in capture page, got:\n%s", want, out)
 			}
+		}
+	})
+
+	t.Run("summary strip always visible", func(t *testing.T) {
+		data := capturePageData{
+			Profile:        OwnerProfile{AutoFillAmount: true},
+			ShowOnboarding: false,
+			HasQR:          true,
+		}
+		var buf bytes.Buffer
+		if err := s.templates.ExecuteTemplate(&buf, "owner/capture.html", data); err != nil {
+			t.Fatalf("render capture: %v", err)
+		}
+		out := buf.String()
+		if !strings.Contains(out, `id="summary-strip"`) {
+			t.Fatal("expected summary strip with zero splits")
+		}
+		if strings.Contains(out, `id="capture-splits"`) {
+			t.Fatal("expected no splits section when list is empty")
+		}
+		for _, bad := range []string{"⚙", "↪"} {
+			if strings.Contains(out, bad) {
+				t.Fatalf("expected SVG header icons, found unicode %q", bad)
+			}
+		}
+		if !strings.Contains(out, `aria-label="Payment settings"`) || !strings.Contains(out, `viewBox="0 0 24 24"`) {
+			t.Fatal("expected SVG icons in capture header")
 		}
 	})
 

@@ -3,7 +3,7 @@
 <div class="participant-row" style="{{if .IsOwner}}opacity:.7{{end}}">
   <div class="avatar" style="background:{{avatarColor .Name}}">{{initial .Name}}</div>
   <div style="flex:1;min-width:0">
-    <div style="font:700 14px 'Figtree'">{{.Name}}{{if .IsOwner}} <span class="hint" style="font-weight:600">(you)</span>{{end}}</div>
+    <div style="font:700 14px 'JetBrains Mono'">{{.Name}}{{if .IsOwner}} <span class="hint" style="font-weight:600">(you)</span>{{end}}</div>
     <div class="muted" style="font-size:12px">{{rm .OwedSen}}</div>
   </div>
   {{if .IsOwner}}

@@ -2,7 +2,7 @@
 <script type="application/json" id="receipt-data">{{json .}}</script>
 <div x-data="receiptReview()" style="flex:1;display:flex;flex-direction:column;background:var(--cream)">
   <div class="topbar">
-    <a href="/capture" class="back-chip tap" aria-label="Back">←</a>
+    <a href="/capture" class="back-chip tap" aria-label="Back">{{template "icon-back"}}</a>
     <div class="topbar-title" style="flex:1;min-width:0">
       <input type="text" x-model="merchant" placeholder="Restaurant name" class="display" style="font-size:16px;width:100%;padding:6px 0;background:transparent;border:none;border-bottom:1px solid var(--border)">
       <div class="muted" style="font-size:11px;margin-top:4px">{{if .CapturedAt}}{{.CapturedAt}}{{else}}Just now{{end}}</div>

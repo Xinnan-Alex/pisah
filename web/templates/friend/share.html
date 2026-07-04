@@ -7,19 +7,19 @@
   <div style="background:var(--cream);border-radius:18px;padding:6px 14px">
     {{range .Share.Lines}}
     <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border)">
-      <span style="font:600 13px 'Figtree'">{{.Name}}</span>
-      <span style="font:700 13px 'Figtree'">{{rm .AmtSen}}</span>
+      <span style="font:600 13px 'JetBrains Mono'">{{.Name}}</span>
+      <span style="font:700 13px 'JetBrains Mono'">{{rm .AmtSen}}</span>
     </div>
     {{end}}
     <div style="display:flex;justify-content:space-between;padding:11px 0">
-      <span class="muted" style="font:600 13px 'Figtree'">Your part of SST &amp; service</span>
-      <span style="font:700 13px 'Figtree'">{{rm .Share.TaxSen}}</span>
+      <span class="muted" style="font:600 13px 'JetBrains Mono'">Your part of SST &amp; service</span>
+      <span style="font:700 13px 'JetBrains Mono'">{{rm .Share.TaxSen}}</span>
     </div>
   </div>
 </div>
 <div class="pad" style="margin-top:10px">
   <div style="background:var(--green);border-radius:20px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;color:#fff">
-    <span style="font:700 14px 'Figtree';opacity:.85">You owe</span>
+    <span style="font:700 14px 'JetBrains Mono';opacity:.85">You owe</span>
     <span class="display" style="font-size:26px">{{rm .Share.OwedSen}}</span>
   </div>
 </div>

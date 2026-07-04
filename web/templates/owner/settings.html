@@ -1,11 +1,11 @@
 {{define "owner/settings.html"}}
 <div class="topbar">
-  <a href="/capture" class="back-chip tap" aria-label="Back">←</a>
+  <a href="/capture" class="back-chip tap" aria-label="Back">{{template "icon-back"}}</a>
   <h1 class="display" style="font-size:18px">Payment settings</h1>
 </div>
 
 <div class="pad" style="flex:1;padding-bottom:32px">
-  <p class="hint" style="font:600 11px 'Figtree';letter-spacing:.5px;text-transform:uppercase;margin:16px 0 10px">Your DuitNow QR</p>
+  <p class="hint" style="font:600 11px 'JetBrains Mono';letter-spacing:.5px;text-transform:uppercase;margin:16px 0 10px">Your DuitNow QR</p>
   <div class="card" style="display:flex;gap:16px;align-items:center">
     {{if hasQR .Profile.OwnerQRURL}}
     <img src="/settings/qr-image" alt="Your DuitNow QR" style="width:88px;height:88px;object-fit:contain;border-radius:12px;background:var(--paper);border:1px solid #EFE6D8">
@@ -23,7 +23,7 @@
     </div>
   </div>
 
-  <p class="hint" style="font:600 11px 'Figtree';letter-spacing:.5px;text-transform:uppercase;margin:24px 0 10px">Payment preference</p>
+  <p class="hint" style="font:600 11px 'JetBrains Mono';letter-spacing:.5px;text-transform:uppercase;margin:24px 0 10px">Payment preference</p>
   <div class="card">
     <form hx-put="/settings" hx-swap="none">
       <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer">
