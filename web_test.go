@@ -27,6 +27,7 @@ func TestWebTemplatesParse(t *testing.T) {
 		"friend/done.html",
 		"partials/splits_list.html",
 		"partials/track_participants.html",
+		"partials/onboarding_walkthrough.html",
 		"auth/callback.html",
 	}
 	for _, p := range pages {
@@ -80,6 +81,75 @@ func TestReviewPageEmbedsReceiptJSONOnce(t *testing.T) {
 	}
 	if !strings.Contains(out, `placeholder="Restaurant name"`) {
 		t.Fatal("expected editable merchant input")
+	}
+}
+
+func TestCapturePageOnboardingAndQRGate(t *testing.T) {
+	s := &Server{cfg: Config{PublicBaseURL: "https://split.my"}}
+	if err := s.initWeb(); err != nil {
+		t.Fatalf("initWeb: %v", err)
+	}
+
+	t.Run("first visit shows welcome and qr gate", func(t *testing.T) {
+		data := capturePageData{
+			Profile:        OwnerProfile{AutoFillAmount: true},
+			ShowOnboarding: true,
+			HasQR:          false,
+		}
+		var buf bytes.Buffer
+		if err := s.templates.ExecuteTemplate(&buf, "owner/capture.html", data); err != nil {
+			t.Fatalf("render capture: %v", err)
+		}
+		out := buf.String()
+		for _, want := range []string{
+			`data-show-onboarding="1"`,
+			`id="onboarding-modal"`,
+			`aria-label="How to use Pisah"`,
+			`Upload your DuitNow QR`,
+			`viewfinder-section-locked`,
+			`Upload QR to unlock scanning`,
+		} {
+			if !strings.Contains(out, want) {
+				t.Fatalf("expected %q in capture page, got:\n%s", want, out)
+			}
+		}
+	})
+
+	t.Run("returning owner with qr unlocks scanning", func(t *testing.T) {
+		qr := "https://example.com/qr.png"
+		data := capturePageData{
+			Profile:        OwnerProfile{OwnerQRURL: &qr, AutoFillAmount: true},
+			ShowOnboarding: false,
+			HasQR:          true,
+		}
+		var buf bytes.Buffer
+		if err := s.templates.ExecuteTemplate(&buf, "owner/capture.html", data); err != nil {
+			t.Fatalf("render capture: %v", err)
+		}
+		out := buf.String()
+		if strings.Contains(out, `viewfinder-section-locked`) {
+			t.Fatal("expected unlocked capture UI when QR exists")
+		}
+		if !strings.Contains(out, `Snap your receipt`) {
+			t.Fatal("expected scan hero when QR exists")
+		}
+		if !strings.Contains(out, `id="scan-form"`) {
+			t.Fatal("expected scan form when QR exists")
+		}
+	})
+}
+
+func TestOwnerProfileHasQR(t *testing.T) {
+	if ownerProfileHasQR(OwnerProfile{}) {
+		t.Fatal("empty profile should not have QR")
+	}
+	qr := "https://example.com/qr.png"
+	if !ownerProfileHasQR(OwnerProfile{OwnerQRURL: &qr}) {
+		t.Fatal("profile with URL should have QR")
+	}
+	empty := ""
+	if ownerProfileHasQR(OwnerProfile{OwnerQRURL: &empty}) {
+		t.Fatal("empty URL should not count as QR")
 	}
 }
 

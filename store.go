@@ -416,16 +416,21 @@ func (st *Store) Participants(ctx context.Context, splitID string) ([]Participan
 }
 
 type OwnerProfile struct {
-	OwnerQRURL     *string `json:"ownerQrUrl"`
-	AutoFillAmount bool    `json:"autoFillAmount"`
+	OwnerQRURL       *string    `json:"ownerQrUrl"`
+	AutoFillAmount   bool       `json:"autoFillAmount"`
+	OnboardingSeenAt *time.Time `json:"onboardingSeenAt,omitempty"`
+}
+
+func ownerProfileHasQR(p OwnerProfile) bool {
+	return p.OwnerQRURL != nil && *p.OwnerQRURL != ""
 }
 
 func (st *Store) GetOwnerProfile(ctx context.Context, ownerID string) (OwnerProfile, error) {
 	var p OwnerProfile
 	err := st.pool.QueryRow(ctx, `
-		select owner_qr_url, auto_fill_amount
+		select owner_qr_url, auto_fill_amount, onboarding_seen_at
 		from owner_profiles where owner_id = $1`, ownerID,
-	).Scan(&p.OwnerQRURL, &p.AutoFillAmount)
+	).Scan(&p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
 	if err == nil {
 		return p, nil
 	}
@@ -448,8 +453,8 @@ func (st *Store) SetOwnerQRURL(ctx context.Context, ownerID, qrURL string) (Owne
 		on conflict (owner_id) do update set
 			owner_qr_url = excluded.owner_qr_url,
 			updated_at = now()
-		returning owner_qr_url, auto_fill_amount`, ownerID, qrURL,
-	).Scan(&p.OwnerQRURL, &p.AutoFillAmount)
+		returning owner_qr_url, auto_fill_amount, onboarding_seen_at`, ownerID, qrURL,
+	).Scan(&p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
 	return p, err
 }
 
@@ -461,9 +466,19 @@ func (st *Store) SetAutoFillAmount(ctx context.Context, ownerID string, autoFill
 		on conflict (owner_id) do update set
 			auto_fill_amount = excluded.auto_fill_amount,
 			updated_at = now()
-		returning owner_qr_url, auto_fill_amount`, ownerID, autoFill,
-	).Scan(&p.OwnerQRURL, &p.AutoFillAmount)
+		returning owner_qr_url, auto_fill_amount, onboarding_seen_at`, ownerID, autoFill,
+	).Scan(&p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
 	return p, err
+}
+
+func (st *Store) MarkOnboardingSeen(ctx context.Context, ownerID string) error {
+	_, err := st.pool.Exec(ctx, `
+		insert into owner_profiles (owner_id, onboarding_seen_at)
+		values ($1, now())
+		on conflict (owner_id) do update set
+			onboarding_seen_at = coalesce(owner_profiles.onboarding_seen_at, now()),
+			updated_at = now()`, ownerID)
+	return err
 }
 
 // CollectedSen sums what paid friends have settled.

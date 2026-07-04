@@ -1,10 +1,27 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 SUPABASE_PROJECT := pisah
 
-.PHONY: run test supabase-start supabase-stop supabase-logs
+.PHONY: run local mobile test supabase-start supabase-stop supabase-logs
 
-run:
-	set -a && . ./.env && set +a && go run .
+# Default: localhost only. Use `make mobile` (or `make run mobile`) for phone access on LAN.
+run: local
+
+local:
+	@set -a && . ./.env && set +a && \
+	port=$${PORT:-8080} && \
+	echo "Starting on http://127.0.0.1:$$port" && \
+	HOST=127.0.0.1 PUBLIC_BASE_URL=http://127.0.0.1:$$port go run .
+
+mobile:
+	@set -a && . ./.env && set +a && \
+	ip=$$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null) && \
+	port=$${PORT:-8080} && \
+	if [ -z "$$ip" ]; then \
+		echo "Could not detect LAN IP. Try: HOST=0.0.0.0 PUBLIC_BASE_URL=http://YOUR_IP:$$port go run ."; \
+		exit 1; \
+	fi && \
+	echo "Starting on http://$$ip:$$port (open this on your phone, same Wi-Fi)" && \
+	HOST=0.0.0.0 PUBLIC_BASE_URL=http://$$ip:$$port go run .
 
 test:
 	go test ./...

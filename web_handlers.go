@@ -21,6 +21,10 @@ type capturePageData struct {
 	OutstandingSen    int64
 	CollectedTotalSen int64
 	ActiveCount       int
+	Profile           OwnerProfile
+	HasQR             bool
+	ShowOnboarding    bool
+	SetupRequired     bool
 }
 
 type reviewPageData struct {
@@ -193,12 +197,10 @@ func (s *Server) handleWebAuthSession(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) handleWebCapture(w http.ResponseWriter, r *http.Request) {
-	ownerID := r.Context().Value(ctxOwnerID).(string)
-	summaries, err := s.store.ListOwnerSplits(r.Context(), ownerID)
+func (s *Server) loadCapturePageData(ctx context.Context, ownerID string, setupRequired bool) (capturePageData, error) {
+	summaries, err := s.store.ListOwnerSplits(ctx, ownerID)
 	if err != nil {
-		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load splits", err)
-		return
+		return capturePageData{}, err
 	}
 	var outstanding, collected int64
 	active := 0
@@ -210,18 +212,77 @@ func (s *Server) handleWebCapture(w http.ResponseWriter, r *http.Request) {
 			active++
 		}
 	}
-	data := capturePageData{
+	prof, err := s.store.GetOwnerProfile(ctx, ownerID)
+	if err != nil {
+		return capturePageData{}, err
+	}
+	hasQR := ownerProfileHasQR(prof)
+	return capturePageData{
 		Splits:            summaries,
 		OutstandingSen:    outstanding,
 		CollectedTotalSen: collected,
 		ActiveCount:       active,
+		Profile:           prof,
+		HasQR:             hasQR,
+		ShowOnboarding:    prof.OnboardingSeenAt == nil,
+		SetupRequired:     setupRequired,
+	}, nil
+}
+
+func (s *Server) renderCapture(w http.ResponseWriter, r *http.Request, setupRequired bool) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load capture page", err)
+		return
 	}
 	s.render(w, r, "owner/capture.html", "Pisah", data)
 }
 
+func (s *Server) ownerQRRequired(w http.ResponseWriter, r *http.Request, ownerID string) bool {
+	prof, err := s.store.GetOwnerProfile(r.Context(), ownerID)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load profile", err)
+		return false
+	}
+	if ownerProfileHasQR(prof) {
+		return true
+	}
+	if r.Header.Get("HX-Request") != "" {
+		s.renderCapture(w, r, true)
+		return false
+	}
+	http.Redirect(w, r, "/capture?setup=qr", http.StatusSeeOther)
+	return false
+}
+
+func (s *Server) handleWebCapture(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	setupRequired := r.URL.Query().Get("setup") == "qr"
+	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load splits", err)
+		return
+	}
+	s.render(w, r, "owner/capture.html", "Pisah", data)
+}
+
+func (s *Server) handleWebOnboardingSeen(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	if err := s.store.MarkOnboardingSeen(r.Context(), ownerID); err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not save onboarding", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) handleWebScan(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	if !s.ownerQRRequired(w, r, ownerID) {
+		return
+	}
 	if err := r.ParseMultipartForm(maxReceiptBytes); err != nil {
-		s.render(w, r, "owner/capture.html", "Pisah", capturePageData{})
+		s.renderCapture(w, r, false)
 		return
 	}
 	file, _, err := r.FormFile("receipt")
@@ -239,7 +300,7 @@ func (s *Server) handleWebScan(w http.ResponseWriter, r *http.Request) {
 	parsed, err := scanReceipt(r.Context(), img)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "web scan failed", "error", err)
-		s.render(w, r, "owner/capture.html", "Pisah", capturePageData{})
+		s.renderCapture(w, r, false)
 		return
 	}
 
@@ -274,6 +335,9 @@ func (s *Server) handleWebScan(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
+	if !s.ownerQRRequired(w, r, ownerID) {
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/capture", http.StatusSeeOther)
 		return
@@ -530,6 +594,10 @@ func (s *Server) handleWebUploadQR(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Header.Get("HX-Request") != "" {
 		s.renderSettings(w, r, ownerID)
+		return
+	}
+	if r.FormValue("next") == "capture" {
+		http.Redirect(w, r, "/capture", http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)

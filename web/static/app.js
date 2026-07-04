@@ -22,6 +22,35 @@ function submitReceipt(input) {
   input.form.submit();
 }
 
+function openOnboardingModal(autoMarkSeenOnClose) {
+  const modal = document.getElementById('onboarding-modal');
+  if (!modal) return;
+  modal.hidden = false;
+  modal.setAttribute('aria-hidden', 'false');
+  modal.dataset.autoMarkSeen = autoMarkSeenOnClose ? '1' : '0';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeOnboardingModal(explicitMarkSeen) {
+  const modal = document.getElementById('onboarding-modal');
+  if (!modal) return;
+  modal.hidden = true;
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  if (explicitMarkSeen || modal.dataset.autoMarkSeen === '1') {
+    fetch('/onboarding/seen', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+  }
+}
+
+function initCaptureOnboarding() {
+  const page = document.querySelector('.capture-page');
+  if (!page || page.dataset.showOnboarding !== '1') return;
+  openOnboardingModal(true);
+}
+
+document.addEventListener('DOMContentLoaded', initCaptureOnboarding);
+document.body.addEventListener('htmx:afterSettle', initCaptureOnboarding);
+
 function showScanOverlay() {
   const overlay = document.getElementById('scan-overlay');
   if (!overlay) return;

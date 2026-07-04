@@ -83,6 +83,16 @@ func (s *Server) handleGoogleOAuthStart(w http.ResponseWriter, r *http.Request) 
 // POST /api/receipts/scan  (owner)
 // Body: raw image bytes (image/jpeg or image/png). Returns parsed receipt for review.
 func (s *Server) handleScan(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	prof, err := s.store.GetOwnerProfile(r.Context(), ownerID)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load profile", err)
+		return
+	}
+	if !ownerProfileHasQR(prof) {
+		writeErr(w, http.StatusBadRequest, "upload your DuitNow QR in payment settings before scanning receipts")
+		return
+	}
 	img, err := io.ReadAll(io.LimitReader(r.Body, maxReceiptBytes))
 	if err != nil || len(img) == 0 {
 		writeErr(w, http.StatusBadRequest, "empty or unreadable image body")
@@ -108,20 +118,26 @@ func (s *Server) handleCreateSplit(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "split needs items and a positive total")
 		return
 	}
+	prof, err := s.store.GetOwnerProfile(r.Context(), ownerID)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load profile", err)
+		return
+	}
+	if !ownerProfileHasQR(prof) {
+		writeErr(w, http.StatusBadRequest, "upload your DuitNow QR in payment settings before creating splits")
+		return
+	}
 	if claims, ok := r.Context().Value(ctxOwnerClaims).(jwt.MapClaims); ok {
 		if n := ownerDisplayName(claims, in.OwnerName); n != "" {
 			in.OwnerName = n
 		}
 	}
 	if in.OwnerQRURL == nil || *in.OwnerQRURL == "" {
-		if prof, err := s.store.GetOwnerProfile(r.Context(), ownerID); err == nil {
-			in.OwnerQRURL = prof.OwnerQRURL
-		}
+		in.OwnerQRURL = prof.OwnerQRURL
 	}
 
 	// Retry slug collisions a few times (4-char space is small but slugs are sparse).
 	var split Split
-	var err error
 	for attempt := 0; attempt < 5; attempt++ {
 		split, err = s.store.CreateSplit(r.Context(), ownerID, newSlug(), in)
 		if err == nil {

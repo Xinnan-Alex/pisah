@@ -19,6 +19,7 @@ import (
 )
 
 type Config struct {
+	Host                   string // bind address; empty = all interfaces
 	Port                   string
 	DatabaseURL            string
 	SupabaseURL            string // project URL, e.g. https://abc.supabase.co — for JWKS (ES256)
@@ -30,6 +31,7 @@ type Config struct {
 
 func loadConfig() (Config, error) {
 	c := Config{
+		Host:                   os.Getenv("HOST"),
 		Port:                   envOr("PORT", "8080"),
 		DatabaseURL:            os.Getenv("DATABASE_URL"),
 		SupabaseURL:            os.Getenv("SUPABASE_URL"),
@@ -102,13 +104,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	addr := ":" + cfg.Port
+	if cfg.Host != "" {
+		addr = cfg.Host + ":" + cfg.Port
+	}
 	httpSrv := &http.Server{
-		Addr:              ":" + cfg.Port,
+		Addr:              addr,
 		Handler:           srv.routes(),
 		ReadHeaderTimeout: 10 * time.Second,
 		// No WriteTimeout: the SSE endpoint is a long-lived stream.
 	}
 	slog.Info("server starting",
+		"addr", addr,
 		"port", cfg.Port,
 		"public_base_url", cfg.PublicBaseURL,
 		"jwks_enabled", cfg.SupabaseURL != "",
@@ -135,6 +142,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /auth/session", s.handleWebAuthSession)
 
 	mux.Handle("GET /capture", s.requireOwnerWeb(s.handleWebCapture))
+	mux.Handle("POST /onboarding/seen", s.requireOwnerWeb(s.handleWebOnboardingSeen))
 	mux.Handle("POST /scan", s.requireOwnerWeb(s.handleWebScan))
 	mux.Handle("POST /splits", s.requireOwnerWeb(s.handleWebCreateSplit))
 	mux.Handle("DELETE /splits/{slug}", s.requireOwnerWeb(s.handleWebDeleteSplit))

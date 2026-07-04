@@ -253,6 +253,90 @@ input:focus-visible, textarea:focus-visible { outline: none; border-color: var(-
 .shutter-inner { width: 58px; height: 58px; border-radius: 50%; background: var(--orange); }
 
 .capture-page { position: relative; }
+
+.icon-chip {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--cream2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 15px 'Figtree', sans-serif;
+  color: var(--ink);
+}
+
+.setup-banner {
+  margin-bottom: 14px;
+  border-color: rgba(242, 92, 59, .25);
+  background: linear-gradient(135deg, #fff 0%, var(--peach) 100%);
+}
+
+.qr-setup-card { border-color: rgba(24, 160, 122, .2); }
+
+.viewfinder-section-locked { pointer-events: none; }
+.viewfinder-locked { opacity: .72; }
+
+.onboarding-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+.onboarding-modal[hidden] { display: none; }
+.onboarding-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(34, 27, 20, .45);
+  animation: overlay-in .2s ease;
+}
+.onboarding-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  max-height: min(88dvh, 640px);
+  overflow: auto;
+  padding: 22px 20px 20px;
+  animation: panel-up .28s ease;
+}
+@keyframes panel-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.onboarding-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--cream2);
+  color: var(--mut);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.onboarding-steps { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+.onboarding-step { display: flex; gap: 12px; align-items: flex-start; }
+.onboarding-step-num {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--peach);
+  color: var(--orange);
+  font: 800 13px 'Figtree', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.onboarding-actions { display: flex; flex-direction: column; gap: 10px; }
+
 .scan-overlay {
   position: absolute;
   inset: 0;
