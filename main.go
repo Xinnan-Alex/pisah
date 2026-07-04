@@ -137,6 +137,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /", s.handleWebRoot)
 	mux.HandleFunc("GET /signin", s.handleWebSignInGet)
 	mux.HandleFunc("POST /signin", s.handleWebSignInPost)
+	mux.HandleFunc("GET /signup", s.handleWebSignUpGet)
+	mux.HandleFunc("POST /signup", s.handleWebSignUpPost)
 	mux.HandleFunc("POST /signout", s.handleWebSignOut)
 	mux.HandleFunc("GET /auth/callback", s.handleWebAuthCallback)
 	mux.HandleFunc("POST /auth/session", s.handleWebAuthSession)
@@ -166,6 +168,7 @@ func (s *Server) routes() http.Handler {
 
 	// Owner sign-in API (proxies GoTrue so clients only need the server URL).
 	mux.HandleFunc("POST /api/auth/sign-in", s.handleSignIn)
+	mux.HandleFunc("POST /api/auth/sign-up", s.handleSignUp)
 	mux.HandleFunc("GET /api/auth/oauth/google", s.handleGoogleOAuthStart)
 
 	// Owner API (Supabase-authenticated).

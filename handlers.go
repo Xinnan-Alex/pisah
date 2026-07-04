@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,7 +20,7 @@ var authHTTP = &http.Client{Timeout: 15 * time.Second}
 
 // POST /api/auth/sign-in  (public) — proxy Supabase GoTrue password grant.
 func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.SupabaseURL == "" || s.cfg.SupabasePublishableKey == "" {
+	if !s.authConfigured() {
 		writeErr(w, http.StatusNotImplemented, "auth not configured")
 		return
 	}
@@ -33,32 +32,38 @@ func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "email and password required")
 		return
 	}
-	payload, err := json.Marshal(map[string]string{"email": body.Email, "password": body.Password})
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "could not encode sign-in request")
-		return
-	}
-	url := strings.TrimRight(s.cfg.SupabaseURL, "/") + "/auth/v1/token?grant_type=password"
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, url, bytes.NewReader(payload))
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "could not build sign-in request")
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("apikey", s.cfg.SupabasePublishableKey)
-	resp, err := authHTTP.Do(req)
+	status, data, err := s.supabaseSignIn(r.Context(), body.Email, body.Password)
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusBadGateway, "auth service unreachable", err)
 		return
 	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, _ = w.Write(data)
+}
+
+// POST /api/auth/sign-up  (public) — proxy Supabase GoTrue email signup.
+func (s *Server) handleSignUp(w http.ResponseWriter, r *http.Request) {
+	if !s.authConfigured() {
+		writeErr(w, http.StatusNotImplemented, "auth not configured")
+		return
+	}
+	var body struct {
+		Email           string `json:"email"`
+		Password        string `json:"password"`
+		EmailRedirectTo string `json:"email_redirect_to"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Email == "" || body.Password == "" {
+		writeErr(w, http.StatusBadRequest, "email and password required")
+		return
+	}
+	status, data, err := s.supabaseSignUp(r.Context(), body.Email, body.Password, body.EmailRedirectTo)
 	if err != nil {
-		writeErrWithLog(r, w, http.StatusBadGateway, "auth service unreadable", err)
+		writeErrWithLog(r, w, http.StatusBadGateway, "auth service unreachable", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(resp.StatusCode)
+	w.WriteHeader(status)
 	_, _ = w.Write(data)
 }
 

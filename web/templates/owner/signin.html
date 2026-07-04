@@ -7,6 +7,9 @@
   {{if .Error}}
   <div role="alert" style="background:#FDEAE3;color:var(--orange);padding:12px 14px;border-radius:12px;margin-bottom:16px;font-size:13px;font-weight:600">{{.Error}}</div>
   {{end}}
+  {{if .Info}}
+  <div role="status" style="background:#E8F5EF;color:var(--green);padding:12px 14px;border-radius:12px;margin-bottom:16px;font-size:13px;font-weight:600">{{.Info}}</div>
+  {{end}}
   <form method="post" action="/signin">
     <label for="email" class="hint" style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">Email</label>
     <input id="email" name="email" type="email" autocomplete="email" required value="{{.Email}}" style="margin-bottom:14px">
@@ -24,6 +27,9 @@
     Continue with Google
   </a>
   {{end}}
-  <p class="hint" style="text-align:center;font-size:11px;margin-top:20px;line-height:1.5">No app needed for friends — they pay by DuitNow QR</p>
+  <p class="hint" style="text-align:center;font-size:13px;margin-top:22px">
+    New here? <a href="/signup" class="tap" style="color:var(--green);font-weight:600">Create account</a>
+  </p>
+  <p class="hint" style="text-align:center;font-size:11px;margin-top:12px;line-height:1.5">No app needed for friends — they pay by DuitNow QR</p>
 </div>
 {{end}}

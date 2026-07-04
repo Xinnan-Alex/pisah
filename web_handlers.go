@@ -113,6 +113,7 @@ func (s *Server) handleWebSignInGet(w http.ResponseWriter, r *http.Request) {
 	}
 	data := map[string]any{
 		"Error":     r.URL.Query().Get("error"),
+		"Info":      r.URL.Query().Get("info"),
 		"Email":     r.URL.Query().Get("email"),
 		"GoogleURL": "",
 	}
@@ -133,40 +134,82 @@ func (s *Server) handleWebSignInPost(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/signin?error=Email+and+password+required&email="+url.QueryEscape(email), http.StatusSeeOther)
 		return
 	}
-	if s.cfg.SupabaseURL == "" || s.cfg.SupabasePublishableKey == "" {
+	if !s.authConfigured() {
 		http.Redirect(w, r, "/signin?error=Auth+not+configured", http.StatusSeeOther)
 		return
 	}
-	payload, _ := json.Marshal(map[string]string{"email": email, "password": password})
-	authURL := strings.TrimRight(s.cfg.SupabaseURL, "/") + "/auth/v1/token?grant_type=password"
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, authURL, strings.NewReader(string(payload)))
-	if err != nil {
-		http.Redirect(w, r, "/signin?error=Auth+error", http.StatusSeeOther)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("apikey", s.cfg.SupabasePublishableKey)
-	resp, err := authHTTP.Do(req)
+	status, data, err := s.supabaseSignIn(r.Context(), email, password)
 	if err != nil {
 		http.Redirect(w, r, "/signin?error=Auth+service+unreachable&email="+url.QueryEscape(email), http.StatusSeeOther)
 		return
 	}
-	defer resp.Body.Close()
-	data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode >= 400 {
+	if status >= 400 {
 		http.Redirect(w, r, "/signin?error=Invalid+email+or+password&email="+url.QueryEscape(email), http.StatusSeeOther)
 		return
 	}
-	var tok struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-	}
-	if err := json.Unmarshal(data, &tok); err != nil || tok.AccessToken == "" {
+	tok := parseSupabaseSession(data)
+	if tok.AccessToken == "" {
 		http.Redirect(w, r, "/signin?error=Auth+response+invalid", http.StatusSeeOther)
 		return
 	}
 	s.setSessionCookies(w, tok.AccessToken, tok.RefreshToken)
 	http.Redirect(w, r, "/capture", http.StatusSeeOther)
+}
+
+func (s *Server) handleWebSignUpGet(w http.ResponseWriter, r *http.Request) {
+	if _, _, ok := s.ownerFromRequest(w, r); ok {
+		http.Redirect(w, r, "/capture", http.StatusSeeOther)
+		return
+	}
+	data := map[string]any{
+		"Error": r.URL.Query().Get("error"),
+		"Email": r.URL.Query().Get("email"),
+	}
+	s.render(w, r, "owner/signup.html", "Sign up · Pisah", data)
+}
+
+func (s *Server) handleWebSignUpPost(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/signup?error=Invalid+form", http.StatusSeeOther)
+		return
+	}
+	email := strings.TrimSpace(r.FormValue("email"))
+	password := r.FormValue("password")
+	confirm := r.FormValue("password_confirm")
+	if email == "" || password == "" {
+		http.Redirect(w, r, "/signup?error=Email+and+password+required&email="+url.QueryEscape(email), http.StatusSeeOther)
+		return
+	}
+	if password != confirm {
+		http.Redirect(w, r, "/signup?error=Passwords+do+not+match&email="+url.QueryEscape(email), http.StatusSeeOther)
+		return
+	}
+	if !s.authConfigured() {
+		http.Redirect(w, r, "/signup?error=Auth+not+configured", http.StatusSeeOther)
+		return
+	}
+	redirectTo := strings.TrimRight(s.cfg.PublicBaseURL, "/") + "/auth/callback"
+	status, data, err := s.supabaseSignUp(r.Context(), email, password, redirectTo)
+	if err != nil {
+		http.Redirect(w, r, "/signup?error=Auth+service+unreachable&email="+url.QueryEscape(email), http.StatusSeeOther)
+		return
+	}
+	if status >= 400 {
+		msg := supabaseErrorMessage(data)
+		if msg == "" {
+			msg = "Could not create account"
+		}
+		http.Redirect(w, r, "/signup?error="+url.QueryEscape(msg)+"&email="+url.QueryEscape(email), http.StatusSeeOther)
+		return
+	}
+	tok := parseSupabaseSession(data)
+	if tok.AccessToken != "" {
+		s.setSessionCookies(w, tok.AccessToken, tok.RefreshToken)
+		http.Redirect(w, r, "/capture", http.StatusSeeOther)
+		return
+	}
+	info := "Check your email to confirm your account, then sign in"
+	http.Redirect(w, r, "/signin?info="+url.QueryEscape(info)+"&email="+url.QueryEscape(email), http.StatusSeeOther)
 }
 
 func (s *Server) handleWebSignOut(w http.ResponseWriter, r *http.Request) {
