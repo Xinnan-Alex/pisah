@@ -16,6 +16,7 @@ import (
 const (
 	cookieAccess  = "pisah_at"
 	cookieRefresh = "pisah_rt"
+	cookieAnon    = "pisah_anon"
 )
 
 func (s *Server) setSessionCookies(w http.ResponseWriter, access, refresh string) {
@@ -145,6 +146,44 @@ func (s *Server) requireOwnerWeb(next http.HandlerFunc) http.HandlerFunc {
 		}
 		ctx := context.WithValue(r.Context(), ctxOwnerID, ownerID)
 		ctx = context.WithValue(ctx, ctxOwnerClaims, claims)
+		ctx = context.WithValue(ctx, ctxSignedIn, true)
+		next(w, r.WithContext(ctx))
+	}
+}
+
+func signedInFromRequest(r *http.Request) bool {
+	v, ok := r.Context().Value(ctxSignedIn).(bool)
+	return ok && v
+}
+
+func (s *Server) anonOwnerID(w http.ResponseWriter, r *http.Request) string {
+	if c, err := r.Cookie(cookieAnon); err == nil && c.Value != "" {
+		return c.Value
+	}
+	id := newUUID()
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieAnon,
+		Value:    id,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   60 * 60 * 24 * 365,
+	})
+	return id
+}
+
+func (s *Server) ownerOrAnonWeb(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if ownerID, claims, ok := s.ownerFromRequest(w, r); ok {
+			ctx := context.WithValue(r.Context(), ctxOwnerID, ownerID)
+			ctx = context.WithValue(ctx, ctxOwnerClaims, claims)
+			ctx = context.WithValue(ctx, ctxSignedIn, true)
+			next(w, r.WithContext(ctx))
+			return
+		}
+		ownerID := s.anonOwnerID(w, r)
+		ctx := context.WithValue(r.Context(), ctxOwnerID, ownerID)
+		ctx = context.WithValue(ctx, ctxSignedIn, false)
 		next(w, r.WithContext(ctx))
 	}
 }

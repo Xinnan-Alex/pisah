@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log/slog"
@@ -156,16 +157,16 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /auth/callback", s.handleWebAuthCallback)
 	mux.HandleFunc("POST /auth/session", s.handleWebAuthSession)
 
-	mux.Handle("GET /capture", s.requireOwnerWeb(s.handleWebCapture))
+	mux.Handle("GET /capture", s.ownerOrAnonWeb(s.handleWebCapture))
 	mux.Handle("POST /onboarding/seen", s.requireOwnerWeb(s.handleWebOnboardingSeen))
-	mux.Handle("POST /scan", s.requireOwnerWeb(s.handleWebScan))
-	mux.Handle("GET /review/manual", s.requireOwnerWeb(s.handleWebManualReview))
-	mux.Handle("GET /scan/{id}/image", s.requireOwnerWeb(s.handleScanImageWeb))
-	mux.Handle("POST /scan/{id}/rescan", s.requireOwnerWeb(s.handleWebRescan))
-	mux.Handle("POST /splits", s.requireOwnerWeb(s.handleWebCreateSplit))
-	mux.Handle("DELETE /splits/{slug}", s.requireOwnerWeb(s.handleWebDeleteSplit))
-	mux.Handle("GET /splits/{slug}/track", s.requireOwnerWeb(s.handleWebTrack))
-	mux.Handle("GET /splits/{slug}/track/participants", s.requireOwnerWeb(s.handleWebTrackParticipants))
+	mux.Handle("POST /scan", s.ownerOrAnonWeb(s.handleWebScan))
+	mux.Handle("GET /review/manual", s.ownerOrAnonWeb(s.handleWebManualReview))
+	mux.Handle("GET /scan/{id}/image", s.ownerOrAnonWeb(s.handleScanImageWeb))
+	mux.Handle("POST /scan/{id}/rescan", s.ownerOrAnonWeb(s.handleWebRescan))
+	mux.Handle("POST /splits", s.ownerOrAnonWeb(s.handleWebCreateSplit))
+	mux.Handle("DELETE /splits/{slug}", s.ownerOrAnonWeb(s.handleWebDeleteSplit))
+	mux.Handle("GET /splits/{slug}/track", s.ownerOrAnonWeb(s.handleWebTrack))
+	mux.Handle("GET /splits/{slug}/track/participants", s.ownerOrAnonWeb(s.handleWebTrackParticipants))
 	mux.Handle("GET /settings", s.requireOwnerWeb(s.handleWebSettingsGet))
 	mux.Handle("GET /settings/qr-image", s.requireOwnerWeb(s.handleWebSettingsQRImage))
 	mux.Handle("PUT /settings", s.requireOwnerWeb(s.handleWebSettingsPut))
@@ -219,6 +220,7 @@ type ctxKey string
 const (
 	ctxOwnerID     ctxKey = "ownerID"
 	ctxOwnerClaims ctxKey = "ownerClaims"
+	ctxSignedIn    ctxKey = "signedIn"
 	ctxParticipant ctxKey = "participant"
 	ctxSplitID     ctxKey = "splitID"
 )
@@ -313,6 +315,15 @@ func newToken() string {
 	b := make([]byte, 18)
 	rand.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func newUUID() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
 // ---- tiny http helpers ----

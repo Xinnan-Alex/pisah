@@ -26,6 +26,7 @@ type capturePageData struct {
 	ShowOnboarding    bool
 	SetupRequired     bool
 	ScanError         string
+	SignedIn          bool
 }
 
 type reviewPageData struct {
@@ -42,12 +43,16 @@ type reviewPageData struct {
 	CapturedAt  string       `json:"-"`
 	ManualEntry bool         `json:"manualEntry,omitempty"`
 	RescanError string       `json:"-"`
+	SignedIn    bool         `json:"signedIn,omitempty"`
 }
 
 type sharePageData struct {
 	Slug            string
 	ShareURL        string
 	ShareDisplayURL string
+	Merchant        string
+	TotalSen        int64
+	SignedIn        bool
 }
 
 type trackPageData struct {
@@ -105,11 +110,7 @@ type friendDonePageData struct {
 }
 
 func (s *Server) handleWebRoot(w http.ResponseWriter, r *http.Request) {
-	if _, _, ok := s.ownerFromRequest(w, r); ok {
-		http.Redirect(w, r, "/capture", http.StatusSeeOther)
-		return
-	}
-	http.Redirect(w, r, "/signin", http.StatusSeeOther)
+	http.Redirect(w, r, "/capture", http.StatusSeeOther)
 }
 
 func (s *Server) handleWebSignInGet(w http.ResponseWriter, r *http.Request) {
@@ -246,26 +247,36 @@ func (s *Server) handleWebAuthSession(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) loadCapturePageData(ctx context.Context, ownerID string, setupRequired bool) (capturePageData, error) {
-	summaries, err := s.store.ListOwnerSplits(ctx, ownerID)
-	if err != nil {
-		return capturePageData{}, err
-	}
+func (s *Server) loadCapturePageData(ctx context.Context, ownerID string, setupRequired bool, signedIn bool) (capturePageData, error) {
+	var summaries []SplitSummary
 	var outstanding, collected int64
 	active := 0
-	for _, sum := range summaries {
-		collected += sum.CollectedSen
-		rem := sum.Split.TotalSen - sum.CollectedSen
-		if rem > 0 {
-			outstanding += rem
-			active++
+	prof := OwnerProfile{AutoFillAmount: true}
+	hasQR := false
+	showOnboarding := false
+
+	if signedIn {
+		var err error
+		summaries, err = s.store.ListOwnerSplits(ctx, ownerID)
+		if err != nil {
+			return capturePageData{}, err
 		}
+		for _, sum := range summaries {
+			collected += sum.CollectedSen
+			rem := sum.Split.TotalSen - sum.CollectedSen
+			if rem > 0 {
+				outstanding += rem
+				active++
+			}
+		}
+		prof, err = s.store.GetOwnerProfile(ctx, ownerID)
+		if err != nil {
+			return capturePageData{}, err
+		}
+		hasQR = ownerProfileHasQR(prof)
+		showOnboarding = prof.OnboardingSeenAt == nil
 	}
-	prof, err := s.store.GetOwnerProfile(ctx, ownerID)
-	if err != nil {
-		return capturePageData{}, err
-	}
-	hasQR := ownerProfileHasQR(prof)
+
 	return capturePageData{
 		Splits:            summaries,
 		OutstandingSen:    outstanding,
@@ -273,14 +284,15 @@ func (s *Server) loadCapturePageData(ctx context.Context, ownerID string, setupR
 		ActiveCount:       active,
 		Profile:           prof,
 		HasQR:             hasQR,
-		ShowOnboarding:    prof.OnboardingSeenAt == nil,
-		SetupRequired:     setupRequired,
+		ShowOnboarding:    showOnboarding,
+		SetupRequired:     setupRequired && signedIn,
+		SignedIn:          signedIn,
 	}, nil
 }
 
 func (s *Server) renderCapture(w http.ResponseWriter, r *http.Request, setupRequired bool) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
-	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired)
+	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired, signedInFromRequest(r))
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load capture page", err)
 		return
@@ -289,6 +301,9 @@ func (s *Server) renderCapture(w http.ResponseWriter, r *http.Request, setupRequ
 }
 
 func (s *Server) ownerQRRequired(w http.ResponseWriter, r *http.Request, ownerID string) bool {
+	if !signedInFromRequest(r) {
+		return true
+	}
 	prof, err := s.store.GetOwnerProfile(r.Context(), ownerID)
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load profile", err)
@@ -308,7 +323,7 @@ func (s *Server) ownerQRRequired(w http.ResponseWriter, r *http.Request, ownerID
 func (s *Server) handleWebCapture(w http.ResponseWriter, r *http.Request) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
 	setupRequired := r.URL.Query().Get("setup") == "qr"
-	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired)
+	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired, signedInFromRequest(r))
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load splits", err)
 		return
@@ -364,15 +379,22 @@ func (s *Server) handleWebScan(w http.ResponseWriter, r *http.Request) {
 		"warnings", len(result.Warnings),
 	)...)
 	data := s.reviewDataFromScan(result, true)
+	data.SignedIn = signedInFromRequest(r)
 	s.render(w, r, "owner/review.html", "Review receipt · Pisah", data)
 }
 
 func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
+	signedIn := signedInFromRequest(r)
 	if !s.ownerQRRequired(w, r, ownerID) {
 		return
 	}
-	if err := r.ParseForm(); err != nil {
+	if signedIn {
+		if err := r.ParseForm(); err != nil {
+			http.Redirect(w, r, "/capture", http.StatusSeeOther)
+			return
+		}
+	} else if err := r.ParseMultipartForm(maxReceiptBytes); err != nil {
 		http.Redirect(w, r, "/capture", http.StatusSeeOther)
 		return
 	}
@@ -423,8 +445,12 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ownerName := "You"
-	if claims, ok := r.Context().Value(ctxOwnerClaims).(jwt.MapClaims); ok {
-		ownerName = ownerDisplayName(claims, ownerName)
+	if signedIn {
+		if claims, ok := r.Context().Value(ctxOwnerClaims).(jwt.MapClaims); ok {
+			ownerName = ownerDisplayName(claims, ownerName)
+		}
+	} else if n := strings.TrimSpace(r.FormValue("owner_name")); n != "" {
+		ownerName = n
 	}
 
 	now := time.Now()
@@ -448,8 +474,18 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 			IncludedInSplit *bool  `json:"includedInSplit"`
 		}{Name: it.Name, Qty: it.Qty, UnitPriceSen: it.UnitPriceSen, LineTotalSen: it.LineTotalSen, IncludedInSplit: &included})
 	}
-	if prof, err := s.store.GetOwnerProfile(r.Context(), ownerID); err == nil {
-		in.OwnerQRURL = prof.OwnerQRURL
+	if signedIn {
+		if prof, err := s.store.GetOwnerProfile(r.Context(), ownerID); err == nil {
+			in.OwnerQRURL = prof.OwnerQRURL
+		}
+	} else if file, _, err := r.FormFile("owner_qr"); err == nil {
+		defer file.Close()
+		img, err := io.ReadAll(io.LimitReader(file, maxReceiptBytes))
+		if err == nil && len(img) > 0 {
+			if qrURL, err := uploadDuitNowQR(r.Context(), s.cfg, ownerID, img); err == nil {
+				in.OwnerQRURL = &qrURL
+			}
+		}
 	}
 
 	scanID := strings.TrimSpace(r.FormValue("scan_id"))
@@ -471,6 +507,9 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 		Slug:            split.Slug,
 		ShareURL:        s.shareURL(split.Slug),
 		ShareDisplayURL: s.shareDisplayURL(split.Slug),
+		Merchant:        split.Merchant,
+		TotalSen:        split.TotalSen,
+		SignedIn:        signedIn,
 	}
 	s.render(w, r, "owner/share.html", "Share split · Pisah", data)
 }

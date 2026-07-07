@@ -1,9 +1,15 @@
 {{define "owner/share.html"}}
-<div class="pad" style="flex:1;display:flex;flex-direction:column;padding-top:16px;padding-bottom:28px">
+<div class="pad" style="flex:1;display:flex;flex-direction:column;padding-top:16px;padding-bottom:28px"{{if not .SignedIn}} id="anon-share-page" data-slug="{{.Slug}}" data-merchant="{{.Merchant}}" data-share-url="{{.ShareURL}}" data-total-sen="{{.TotalSen}}"{{end}}>
   <div class="topbar" style="padding:0 0 16px;background:transparent">
     <a href="/capture" class="back-chip tap" aria-label="Back">{{template "icon-back"}}</a>
     <a href="/capture" class="link">New split</a>
   </div>
+
+  {{if not .SignedIn}}
+  <div class="setup-banner card" role="status" style="margin-bottom:14px">
+    <p class="muted" style="font-size:13px;margin:0;line-height:1.45">This split is saved on this device only. Save the link or <a href="/signin" class="link">sign in</a> to keep your bills.</p>
+  </div>
+  {{end}}
 
   <div style="text-align:center;margin:20px 0">
     <div style="width:64px;height:64px;border-radius:50%;background:var(--peach);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;color:var(--green)">✓</div>

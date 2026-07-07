@@ -1,15 +1,27 @@
 {{define "owner/capture.html"}}
-<div class="capture-page" style="flex:1;display:flex;flex-direction:column;min-height:0" data-show-onboarding="{{if .ShowOnboarding}}1{{else}}0{{end}}">
+<div class="capture-page" style="flex:1;display:flex;flex-direction:column;min-height:0" data-show-onboarding="{{if .ShowOnboarding}}1{{else}}0{{end}}" data-signed-in="{{if .SignedIn}}1{{else}}0{{end}}">
 <header class="pad" style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;padding-bottom:8px;flex:none">
   <h1 class="display" style="font-size:22px">Pisah</h1>
   <div class="icon-chip-actions">
   <button type="button" class="icon-chip tap" aria-label="How to use Pisah" onclick="openOnboardingModal(false)">{{template "icon-help"}}</button>
+  {{if .SignedIn}}
   <a href="/settings" class="icon-chip tap" aria-label="Payment settings">{{template "icon-settings"}}</a>
   <form method="post" action="/signout" class="icon-chip-form"><button type="submit" class="icon-chip tap icon-chip-muted" aria-label="Sign out">{{template "icon-sign-out"}}</button></form>
+  {{else}}
+  <a href="/signin" class="link tap" style="font-size:13px;font-weight:600;padding:8px 12px">Sign in</a>
+  {{end}}
   </div>
 </header>
 
 <div class="capture-body pad">
+  {{if not .SignedIn}}
+  <div id="anon-disclaimer" class="setup-banner card" role="status" style="margin-bottom:16px">
+    <strong style="font-size:14px">Not signed in</strong>
+    <p class="muted" style="font-size:13px;margin:6px 0 0;line-height:1.4">Your splits are saved only on this device. <a href="/signin" class="link">Sign in</a> to keep them and access from anywhere.</p>
+    <button type="button" class="link tap" style="font-size:12px;margin-top:8px;padding:0" onclick="dismissAnonDisclaimer()">Dismiss</button>
+  </div>
+  {{end}}
+
   {{if .SetupRequired}}
   <div class="setup-banner card" role="alert">
     <strong style="font-size:14px">Add your DuitNow QR first</strong>
@@ -24,7 +36,7 @@
   </div>
   {{end}}
 
-  {{if not .HasQR}}
+  {{if and .SignedIn (not .HasQR)}}
   <div class="card qr-setup-card" style="margin-bottom:16px">
     <p class="hint" style="font:600 11px 'JetBrains Mono';letter-spacing:.5px;text-transform:uppercase;margin:0 0 10px">Step 1 · Payment setup</p>
     <h2 class="display" style="font-size:20px;line-height:1.2">Upload your DuitNow QR</h2>
@@ -46,6 +58,7 @@
   </div>
   {{end}}
 
+  {{if .SignedIn}}
   {{template "partials/summary_strip.html" .}}
   {{if .Splits}}
   <div id="capture-splits" class="capture-splits">
@@ -55,9 +68,15 @@
     </div>
   </div>
   {{end}}
+  {{else}}
+  <div id="capture-splits" class="capture-splits" hidden>
+    <div class="hint" style="font:600 11px 'JetBrains Mono';letter-spacing:.5px;text-transform:uppercase">Your splits (this device)</div>
+    <div id="local-splits-list"></div>
+  </div>
+  {{end}}
 
-  <div class="viewfinder-section {{if not .HasQR}}viewfinder-section-locked{{end}}">
-    {{if not .HasQR}}
+  <div class="viewfinder-section {{if and .SignedIn (not .HasQR)}}viewfinder-section-locked{{end}}">
+    {{if and .SignedIn (not .HasQR)}}
     <div class="viewfinder-locked">
       <div class="viewfinder">
         <div class="viewfinder-corners" aria-hidden="true">
@@ -138,7 +157,7 @@
     <h2 id="onboarding-title" class="display" style="font-size:22px;line-height:1.15;margin-bottom:16px">Split bills in four steps</h2>
     {{template "partials/onboarding_walkthrough.html" .}}
     <div class="onboarding-actions">
-      {{if not .HasQR}}
+      {{if and .SignedIn (not .HasQR)}}
       <button type="button" class="btn tap" onclick="closeOnboardingModal(true); document.querySelector('.qr-setup-card input[type=file]')?.click()">Upload QR to start</button>
       <button type="button" class="btn btn-outline tap" onclick="closeOnboardingModal(true)">Skip for now</button>
       {{else}}

@@ -81,6 +81,8 @@ func (p *ScanPipeline) Process(ctx context.Context, raw []byte) (ParsedReceipt, 
 		slog.ErrorContext(ctx, "receipt scan failed", p.logAttrs("stage", "ocr", "error", err)...)
 		return ParsedReceipt{}, nil, err
 	}
+	repairMisassignedTotals(&rec)
+	repairMisassignedLineItems(&rec)
 	normalizeParsedReceipt(&rec)
 	enrichParsedReceipt(&rec)
 	warnings := validateReceipt(&rec)

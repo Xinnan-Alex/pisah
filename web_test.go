@@ -92,11 +92,12 @@ func TestCapturePageOnboardingAndQRGate(t *testing.T) {
 		t.Fatalf("initWeb: %v", err)
 	}
 
-	t.Run("first visit shows welcome and qr gate", func(t *testing.T) {
+	t.Run("signed in first visit shows welcome and qr gate", func(t *testing.T) {
 		data := capturePageData{
 			Profile:        OwnerProfile{AutoFillAmount: true},
 			ShowOnboarding: true,
 			HasQR:          false,
+			SignedIn:       true,
 		}
 		var buf bytes.Buffer
 		if err := s.templates.ExecuteTemplate(&buf, "owner/capture.html", data); err != nil {
@@ -105,6 +106,7 @@ func TestCapturePageOnboardingAndQRGate(t *testing.T) {
 		out := buf.String()
 		for _, want := range []string{
 			`data-show-onboarding="1"`,
+			`data-signed-in="1"`,
 			`id="onboarding-modal"`,
 			`aria-label="How to use Pisah"`,
 			`Upload your DuitNow QR`,
@@ -117,11 +119,47 @@ func TestCapturePageOnboardingAndQRGate(t *testing.T) {
 		}
 	})
 
-	t.Run("summary strip always visible", func(t *testing.T) {
+	t.Run("anonymous user skips qr gate", func(t *testing.T) {
+		data := capturePageData{
+			Profile:        OwnerProfile{AutoFillAmount: true},
+			ShowOnboarding: false,
+			HasQR:          false,
+			SignedIn:       false,
+		}
+		var buf bytes.Buffer
+		if err := s.templates.ExecuteTemplate(&buf, "owner/capture.html", data); err != nil {
+			t.Fatalf("render capture: %v", err)
+		}
+		out := buf.String()
+		for _, want := range []string{
+			`data-signed-in="0"`,
+			`Not signed in`,
+			`id="scan-form"`,
+			`Snap your receipt`,
+			`Sign in`,
+		} {
+			if !strings.Contains(out, want) {
+				t.Fatalf("expected %q in anon capture page, got:\n%s", want, out)
+			}
+		}
+		for _, bad := range []string{
+			`viewfinder-section-locked`,
+			`qr-setup-card`,
+			`Upload QR to unlock scanning`,
+			`id="summary-strip"`,
+		} {
+			if strings.Contains(out, bad) {
+				t.Fatalf("unexpected %q in anon capture page", bad)
+			}
+		}
+	})
+
+	t.Run("summary strip always visible for signed in", func(t *testing.T) {
 		data := capturePageData{
 			Profile:        OwnerProfile{AutoFillAmount: true},
 			ShowOnboarding: false,
 			HasQR:          true,
+			SignedIn:       true,
 		}
 		var buf bytes.Buffer
 		if err := s.templates.ExecuteTemplate(&buf, "owner/capture.html", data); err != nil {
@@ -132,7 +170,10 @@ func TestCapturePageOnboardingAndQRGate(t *testing.T) {
 			t.Fatal("expected summary strip with zero splits")
 		}
 		if strings.Contains(out, `id="capture-splits"`) {
-			t.Fatal("expected no splits section when list is empty")
+			t.Fatal("expected no splits section when list is empty for signed-in user")
+		}
+		if strings.Contains(out, `id="local-splits-list"`) {
+			t.Fatal("expected no local splits list for signed-in user")
 		}
 		for _, bad := range []string{"⚙", "↪"} {
 			if strings.Contains(out, bad) {
@@ -150,6 +191,7 @@ func TestCapturePageOnboardingAndQRGate(t *testing.T) {
 			Profile:        OwnerProfile{OwnerQRURL: &qr, AutoFillAmount: true},
 			ShowOnboarding: false,
 			HasQR:          true,
+			SignedIn:       true,
 		}
 		var buf bytes.Buffer
 		if err := s.templates.ExecuteTemplate(&buf, "owner/capture.html", data); err != nil {

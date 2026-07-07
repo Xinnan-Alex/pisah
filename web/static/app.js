@@ -1,5 +1,7 @@
-// Mirrors web.go avatarColor palette so co-claimant avatars are stable.
 const avatarColors = ['#18A07A', '#7C5CFF', '#E8A02D', '#F25C3B'];
+const LOCAL_SPLITS_KEY = 'pisah_splits';
+const ONBOARDING_SEEN_KEY = 'pisah_onboarding_seen';
+const ANON_DISCLAIMER_KEY = 'pisah_anon_disclaimer_dismissed';
 
 // Mirrors the share package — integer sen, round half-up per division.
 function roundDiv(a, b) {
@@ -22,6 +24,121 @@ function submitReceipt(input) {
   input.form.submit();
 }
 
+function isCaptureSignedIn() {
+  const page = document.querySelector('.capture-page');
+  return page && page.dataset.signedIn === '1';
+}
+
+function readLocalSplits() {
+  try {
+    const raw = localStorage.getItem(LOCAL_SPLITS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeLocalSplits(splits) {
+  localStorage.setItem(LOCAL_SPLITS_KEY, JSON.stringify(splits));
+}
+
+function saveAnonSplit(entry) {
+  const splits = readLocalSplits().filter(s => s.slug !== entry.slug);
+  splits.unshift(entry);
+  writeLocalSplits(splits.slice(0, 50));
+}
+
+function removeLocalSplit(slug) {
+  writeLocalSplits(readLocalSplits().filter(s => s.slug !== slug));
+}
+
+function formatSplitDate(iso) {
+  if (!iso) return 'Just now';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  } catch (e) {
+    return 'Just now';
+  }
+}
+
+function renderLocalSplits() {
+  const page = document.querySelector('.capture-page');
+  const section = document.getElementById('capture-splits');
+  const list = document.getElementById('local-splits-list');
+  if (!page || page.dataset.signedIn === '1' || !section || !list) return;
+
+  const splits = readLocalSplits();
+  if (splits.length === 0) {
+    section.hidden = true;
+    list.innerHTML = '';
+    return;
+  }
+
+  section.hidden = false;
+  list.innerHTML = splits.map(s => {
+    const merchant = (s.merchant || 'Split').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const slug = (s.slug || '').replace(/"/g, '&quot;');
+    const shareUrl = (s.shareUrl || '').replace(/"/g, '&quot;');
+    const total = formatRM(parseInt(s.totalSen, 10) || 0);
+    const date = formatSplitDate(s.createdAt);
+    return `<a href="/splits/${slug}/track" class="split-row tap">
+      <div class="split-row-head">
+        <div>
+          <div class="split-row-title">${merchant}</div>
+          <div class="split-row-sub">${date} · ${total}</div>
+        </div>
+        <button type="button" class="tap link local-split-remove" style="font-size:12px;padding:4px 8px" data-slug="${slug}" data-share-url="${shareUrl}">Remove</button>
+      </div>
+    </a>`;
+  }).join('');
+
+  list.querySelectorAll('.local-split-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!confirm('Remove this split from your device list? The share link will still work.')) return;
+      removeLocalSplit(btn.dataset.slug);
+      renderLocalSplits();
+    });
+  });
+}
+
+function dismissAnonDisclaimer() {
+  localStorage.setItem(ANON_DISCLAIMER_KEY, '1');
+  const el = document.getElementById('anon-disclaimer');
+  if (el) el.hidden = true;
+}
+
+function initAnonDisclaimer() {
+  const el = document.getElementById('anon-disclaimer');
+  if (!el) return;
+  if (localStorage.getItem(ANON_DISCLAIMER_KEY) === '1') {
+    el.hidden = true;
+  }
+}
+
+function initAnonSharePage() {
+  const page = document.getElementById('anon-share-page');
+  if (!page) return;
+  saveAnonSplit({
+    slug: page.dataset.slug,
+    merchant: page.dataset.merchant || 'Split',
+    shareUrl: page.dataset.shareUrl,
+    totalSen: parseInt(page.dataset.totalSen, 10) || 0,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+function markOnboardingSeen() {
+  if (isCaptureSignedIn()) {
+    fetch('/onboarding/seen', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+  } else {
+    localStorage.setItem(ONBOARDING_SEEN_KEY, '1');
+  }
+}
+
 function openOnboardingModal(autoMarkSeenOnClose) {
   const modal = document.getElementById('onboarding-modal');
   if (!modal) return;
@@ -38,13 +155,19 @@ function closeOnboardingModal(explicitMarkSeen) {
   modal.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
   if (explicitMarkSeen || modal.dataset.autoMarkSeen === '1') {
-    fetch('/onboarding/seen', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+    markOnboardingSeen();
   }
 }
 
 function initCaptureOnboarding() {
   const page = document.querySelector('.capture-page');
-  if (!page || page.dataset.showOnboarding !== '1') return;
+  if (!page) return;
+  if (page.dataset.signedIn === '1') {
+    if (page.dataset.showOnboarding !== '1') return;
+    openOnboardingModal(true);
+    return;
+  }
+  if (localStorage.getItem(ONBOARDING_SEEN_KEY) === '1') return;
   openOnboardingModal(true);
 }
 
@@ -60,10 +183,15 @@ function initCaptureScanError() {
 document.addEventListener('DOMContentLoaded', () => {
   initCaptureOnboarding();
   initCaptureScanError();
+  initAnonDisclaimer();
+  renderLocalSplits();
+  initAnonSharePage();
 });
 document.body.addEventListener('htmx:afterSettle', () => {
   initCaptureOnboarding();
   initCaptureScanError();
+  initAnonDisclaimer();
+  renderLocalSplits();
 });
 
 function showScanOverlay() {
@@ -135,6 +263,7 @@ function registerAlpineComponents(Alpine) {
     totalSen: 0,
     items: [],
     warnings: [],
+    ownerQrName: '',
     init() {
       const data = loadReceiptJSON();
       this.merchant = data.merchant || '';
@@ -175,6 +304,10 @@ function registerAlpineComponents(Alpine) {
       this.items.push({ name: '', qty: 1, unitPriceSen: 0, lineTotalSen: 0, includedInSplit: true });
     },
     removeItem(i) { this.items.splice(i, 1); },
+    onOwnerQrChange(e) {
+      const file = e.target.files?.[0];
+      this.ownerQrName = file ? file.name : '';
+    },
     syncLine(i) {
       const it = this.items[i];
       const qty = Math.max(1, parseInt(it.qty, 10) || 1);
