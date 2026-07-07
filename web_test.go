@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestWebTemplatesParse(t *testing.T) {
@@ -179,6 +180,135 @@ func TestOwnerProfileHasQR(t *testing.T) {
 	if ownerProfileHasQR(OwnerProfile{OwnerQRURL: &empty}) {
 		t.Fatal("empty URL should not count as QR")
 	}
+}
+
+func TestPercentCollected(t *testing.T) {
+	tests := []struct {
+		collected, total int64
+		want             int
+	}{
+		{0, 9080, 0},
+		{2959, 9080, 32},  // friends paid, bill not fully collected
+		{9080, 9080, 100}, // full bill collected
+		{100, 0, 0},
+		{150, 100, 100}, // capped at 100
+	}
+	for _, tc := range tests {
+		if got := percentCollected(tc.collected, tc.total); got != tc.want {
+			t.Errorf("percentCollected(%d, %d) = %d, want %d", tc.collected, tc.total, got, tc.want)
+		}
+	}
+}
+
+func TestTrackPageProgressUsesBillTotal(t *testing.T) {
+	s := &Server{cfg: Config{PublicBaseURL: "https://split.my"}}
+	if err := s.initWeb(); err != nil {
+		t.Fatalf("initWeb: %v", err)
+	}
+	created := mustParseTime(t, "2026-07-07T12:00:00Z")
+	data := trackPageData{
+		Split: Split{
+			Merchant:  "KFC",
+			Slug:      "abc123",
+			TotalSen:  9080,
+			CreatedAt: &created,
+		},
+		CollectedSen:       2959,
+		FriendsExpectedSen: 2959, // all friends paid their share
+	}
+	var buf bytes.Buffer
+	if err := s.templates.ExecuteTemplate(&buf, "owner/track.html", data); err != nil {
+		t.Fatalf("render track: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"RM 29.59",
+		"of RM 90.80 collected",
+		`width:32%`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in track page, got:\n%s", want, out)
+		}
+	}
+	for _, bad := range []string{"of RM 29.59 collected", `width:100%`, "All friends paid"} {
+		if strings.Contains(out, bad) {
+			t.Fatalf("unexpected %q in track page (friends-only denominator bug)", bad)
+		}
+	}
+}
+
+func TestTrackAllFriendsPaidBanner(t *testing.T) {
+	tests := []struct {
+		name      string
+		collected int64
+		total     int64
+		allMarked bool
+		parts     int
+		want      bool
+	}{
+		{"friends paid partial bill", 2959, 9080, true, 2, false},
+		{"full bill collected", 9080, 9080, true, 2, true},
+		{"unpaid friend", 9080, 9080, false, 2, false},
+		{"solo split", 9080, 9080, true, 1, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := trackAllFriendsPaidBanner(tc.collected, tc.total, tc.allMarked, tc.parts)
+			if got != tc.want {
+				t.Fatalf("got %v want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTrackPageAllPaidRequiresFullBill(t *testing.T) {
+	s := &Server{cfg: Config{PublicBaseURL: "https://split.my"}}
+	if err := s.initWeb(); err != nil {
+		t.Fatalf("initWeb: %v", err)
+	}
+	created := mustParseTime(t, "2026-07-07T12:00:00Z")
+	// All friends marked paid but bill not fully collected — no success banner.
+	data := trackPageData{
+		Split: Split{
+			Merchant:  "KFC",
+			Slug:      "abc123",
+			TotalSen:  9080,
+			CreatedAt: &created,
+		},
+		CollectedSen:       2959,
+		FriendsExpectedSen: 2959,
+		AllPaid:            false,
+		Participants: []Participant{
+			{Name: "owner", IsOwner: true},
+			{Name: "Alex", Paid: true, OwedSen: 2959},
+		},
+	}
+	var buf bytes.Buffer
+	if err := s.templates.ExecuteTemplate(&buf, "owner/track.html", data); err != nil {
+		t.Fatalf("render track: %v", err)
+	}
+	if strings.Contains(buf.String(), "All friends paid") {
+		t.Fatal("expected no All friends paid banner when collected < total")
+	}
+
+	data.AllPaid = true
+	data.CollectedSen = 9080
+	buf.Reset()
+	if err := s.templates.ExecuteTemplate(&buf, "owner/track.html", data); err != nil {
+		t.Fatalf("render track: %v", err)
+	}
+	if !strings.Contains(buf.String(), "All friends paid") {
+		t.Fatal("expected All friends paid banner when collected >= total")
+	}
+}
+
+func mustParseTime(t *testing.T, s string) time.Time {
+	t.Helper()
+	ts, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		t.Fatalf("parse time: %v", err)
+	}
+	return ts
 }
 
 func TestShareDisplayURLStripsScheme(t *testing.T) {

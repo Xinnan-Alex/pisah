@@ -48,8 +48,23 @@ function initCaptureOnboarding() {
   openOnboardingModal(true);
 }
 
-document.addEventListener('DOMContentLoaded', initCaptureOnboarding);
-document.body.addEventListener('htmx:afterSettle', initCaptureOnboarding);
+function initCaptureScanError() {
+  const banner = document.querySelector('.scan-error-banner');
+  const overlay = document.getElementById('scan-overlay');
+  if (banner && overlay) {
+    overlay.hidden = true;
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initCaptureOnboarding();
+  initCaptureScanError();
+});
+document.body.addEventListener('htmx:afterSettle', () => {
+  initCaptureOnboarding();
+  initCaptureScanError();
+});
 
 function showScanOverlay() {
   const overlay = document.getElementById('scan-overlay');
@@ -94,6 +109,22 @@ function loadB64JSON(b64) {
   }
 }
 
+const warningMessages = {
+  no_merchant: "We couldn't read the restaurant name — please fill it in.",
+  no_items: 'No line items were found — add items manually.',
+  no_total: "We couldn't read the total — please check the amount.",
+  total_mismatch: "Items and tax don't add up to the total — please double-check SST, service charge, and rounding.",
+  low_confidence_merchant: 'The merchant name may be wrong — please verify.',
+  low_confidence_total: 'The total may be wrong — please verify against your receipt.',
+  low_confidence_items: 'Some line items may be wrong — check highlighted rows.',
+  low_confidence_item: 'Some line items may be wrong — check highlighted rows.',
+  possible_duplicate: 'Some items look duplicated — remove any extras.',
+};
+
+function warningText(code) {
+  return warningMessages[code] || 'Please review the details before sharing.';
+}
+
 function registerAlpineComponents(Alpine) {
   Alpine.data('receiptReview', () => ({
     merchant: '',
@@ -103,6 +134,7 @@ function registerAlpineComponents(Alpine) {
     roundingSen: 0,
     totalSen: 0,
     items: [],
+    warnings: [],
     init() {
       const data = loadReceiptJSON();
       this.merchant = data.merchant || '';
@@ -111,19 +143,33 @@ function registerAlpineComponents(Alpine) {
       this.serviceSen = data.serviceSen || 0;
       this.roundingSen = data.roundingSen || 0;
       this.totalSen = data.totalSen || 0;
+      this.warnings = Array.isArray(data.warnings) ? [...data.warnings] : [];
       this.items = Array.isArray(data.items) ? data.items.map(it => ({
         ...it,
         includedInSplit: it.includedInSplit !== false,
       })) : [];
+      if (this.items.length === 0) {
+        this.items = [{ name: '', qty: 1, unitPriceSen: 0, lineTotalSen: 0, includedInSplit: true }];
+      }
     },
+    warningText,
     get splittableSubtotalSen() {
       return this.items.reduce((s, it) => s + (it.includedInSplit ? (parseInt(it.lineTotalSen, 10) || 0) : 0), 0);
     },
     get taxTotal() { return this.sstSen + this.serviceSen + this.roundingSen; },
     get computedTotal() {
       const itemsSum = this.items.reduce((s, it) => s + (parseInt(it.lineTotalSen, 10) || 0), 0);
-      if (this.subtotalSen > 0) return this.subtotalSen + this.taxTotal;
-      return itemsSum + this.taxTotal;
+      const base = this.subtotalSen > 0 ? this.subtotalSen : itemsSum;
+      return base + this.taxTotal;
+    },
+    get hasTotalMismatch() {
+      if (this.totalSen <= 0) return false;
+      return Math.abs(this.computedTotal - this.totalSen) > 2;
+    },
+    reconcileText() {
+      const computed = formatRM(this.computedTotal);
+      const printed = formatRM(this.totalSen);
+      return `Items + tax = ${computed} (receipt says ${printed})`;
     },
     addItem() {
       this.items.push({ name: '', qty: 1, unitPriceSen: 0, lineTotalSen: 0, includedInSplit: true });
@@ -228,18 +274,27 @@ if (window.Alpine) {
   document.addEventListener('alpine:init', () => registerAlpineComponents(window.Alpine));
 }
 
-function copyShareLink(url) {
+function copyShareLink(url, btn) {
   navigator.clipboard.writeText(url).then(() => {
     const el = document.getElementById('copy-msg');
     if (el) { el.textContent = 'Copied!'; setTimeout(() => { el.textContent = 'Copy link'; }, 2000); }
+    if (btn) {
+      btn.classList.add('is-copied');
+      const label = btn.getAttribute('aria-label') || 'Share link';
+      btn.setAttribute('aria-label', 'Copied!');
+      setTimeout(() => {
+        btn.classList.remove('is-copied');
+        btn.setAttribute('aria-label', label);
+      }, 2000);
+    }
   });
 }
 
-function shareNative(url, text) {
+function shareNative(url, text, btn) {
   if (navigator.share) {
-    navigator.share({ title: 'Pisah', text, url }).catch(() => copyShareLink(url));
+    navigator.share({ title: 'Pisah', text, url }).catch(() => copyShareLink(url, btn));
   } else {
-    copyShareLink(url);
+    copyShareLink(url, btn);
   }
 }
 
@@ -279,7 +334,6 @@ function writeSummaryTotals(outstandingSen, collectedSen, activeCount) {
 function hideCaptureSplitsSection() {
   const section = document.getElementById('capture-splits');
   if (section) section.hidden = true;
-  document.querySelector('.viewfinder')?.classList.remove('viewfinder-compact');
 }
 
 function applySummaryAfterSplitDelete(row) {

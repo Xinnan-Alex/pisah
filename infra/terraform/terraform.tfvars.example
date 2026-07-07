@@ -8,7 +8,16 @@ supabase_url = "https://zqvkqcphgncaelrlvcbs.supabase.co"
 
 # Settings → API Keys → Publishable and secret API keys (create new keys if needed)
 supabase_publishable_key = "sb_publishable_..."
-# supabase_secret_key    = "sb_secret_..."  # optional; backend uses direct Postgres today
+# Required for DuitNow QR upload + receipt scan image storage (create receipt-scans bucket)
+supabase_secret_key = "sb_secret_..."
+
+# Receipt OCR — pick one provider (ECS task IAM policy is attached automatically).
+# Local dev (AWS_PROFILE → pisahdamin) always gets Bedrock + Textract via Terraform.
+# ocr_provider = "bedrock"   # default; enable model in Bedrock console
+# ocr_model    = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+# ocr_timeout  = "45s"
+# ocr_provider = "textract"  # legacy AWS Textract AnalyzeExpense
+# ocr_provider = "openai"    # set openai_api_key = "sk-..." below
 
 # --- HTTPS (recommended for the iOS app) ---
 # Set domain_name + point a CNAME in Cloudflare to alb_dns_name (DNS only).

@@ -65,3 +65,13 @@ create table if not exists owner_profiles (
 );
 
 alter table owner_profiles add column if not exists onboarding_seen_at timestamptz;
+
+create table if not exists scan_sessions (
+    id          uuid primary key default gen_random_uuid(),
+    owner_id    uuid not null,
+    image_url   text not null,
+    expires_at  timestamptz not null,
+    created_at  timestamptz not null default now()
+);
+create index if not exists scan_sessions_owner_idx on scan_sessions(owner_id);
+create index if not exists scan_sessions_expires_idx on scan_sessions(expires_at);

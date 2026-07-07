@@ -66,12 +66,13 @@ func envFirst(keys ...string) string {
 }
 
 type Server struct {
-	cfg       Config
-	store     *Store
-	broker    *Broker
-	jwks      *jwksCache
-	templates *template.Template
-	staticFS  fs.FS
+	cfg          Config
+	store        *Store
+	broker       *Broker
+	jwks         *jwksCache
+	templates    *template.Template
+	staticFS     fs.FS
+	scanPipeline *ScanPipeline
 }
 
 func main() {
@@ -99,10 +100,22 @@ func main() {
 	if cfg.SupabaseURL != "" {
 		srv.jwks = newJWKS(cfg.SupabaseURL)
 	}
+	pipeline, err := newScanPipeline()
+	if err != nil {
+		slog.Warn("scan pipeline not configured", "error", err)
+	} else {
+		srv.scanPipeline = pipeline
+		slog.Info("scan pipeline ready",
+			"ocr_provider", pipeline.provider,
+			"ocr_model", pipeline.model,
+			"ocr_backend", pipeline.backend(),
+		)
+	}
 	if err := srv.initWeb(); err != nil {
 		slog.Error("web init failed", "error", err)
 		os.Exit(1)
 	}
+	go srv.runScanCleanup(ctx)
 
 	addr := ":" + cfg.Port
 	if cfg.Host != "" {
@@ -146,6 +159,9 @@ func (s *Server) routes() http.Handler {
 	mux.Handle("GET /capture", s.requireOwnerWeb(s.handleWebCapture))
 	mux.Handle("POST /onboarding/seen", s.requireOwnerWeb(s.handleWebOnboardingSeen))
 	mux.Handle("POST /scan", s.requireOwnerWeb(s.handleWebScan))
+	mux.Handle("GET /review/manual", s.requireOwnerWeb(s.handleWebManualReview))
+	mux.Handle("GET /scan/{id}/image", s.requireOwnerWeb(s.handleScanImageWeb))
+	mux.Handle("POST /scan/{id}/rescan", s.requireOwnerWeb(s.handleWebRescan))
 	mux.Handle("POST /splits", s.requireOwnerWeb(s.handleWebCreateSplit))
 	mux.Handle("DELETE /splits/{slug}", s.requireOwnerWeb(s.handleWebDeleteSplit))
 	mux.Handle("GET /splits/{slug}/track", s.requireOwnerWeb(s.handleWebTrack))
@@ -173,6 +189,8 @@ func (s *Server) routes() http.Handler {
 
 	// Owner API (Supabase-authenticated).
 	mux.Handle("POST /api/receipts/scan", s.requireOwner(s.handleScan))
+	mux.Handle("GET /api/receipts/scans/{id}/image", s.requireOwner(s.handleScanImageAPI))
+	mux.Handle("POST /api/receipts/scans/{id}/rescan", s.requireOwner(s.handleRescanAPI))
 	mux.Handle("POST /api/splits", s.requireOwner(s.handleCreateSplit))
 	mux.Handle("GET /api/splits/{slug}/track", s.requireOwner(s.handleTrack))
 	mux.Handle("DELETE /api/splits/{slug}", s.requireOwner(s.handleDeleteSplit))

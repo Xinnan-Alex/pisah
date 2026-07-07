@@ -25,9 +25,11 @@ type capturePageData struct {
 	HasQR             bool
 	ShowOnboarding    bool
 	SetupRequired     bool
+	ScanError         string
 }
 
 type reviewPageData struct {
+	ScanID      string       `json:"scanId,omitempty"`
 	Merchant    string       `json:"merchant"`
 	SubtotalSen int64        `json:"subtotalSen"`
 	SstSen      int64        `json:"sstSen"`
@@ -35,7 +37,11 @@ type reviewPageData struct {
 	RoundingSen int64        `json:"roundingSen"`
 	TotalSen    int64        `json:"totalSen"`
 	Items       []ParsedItem `json:"items"`
+	Warnings    []string     `json:"warnings,omitempty"`
+	ImageURL    string       `json:"imageUrl,omitempty"`
 	CapturedAt  string       `json:"-"`
+	ManualEntry bool         `json:"manualEntry,omitempty"`
+	RescanError string       `json:"-"`
 }
 
 type sharePageData struct {
@@ -307,6 +313,9 @@ func (s *Server) handleWebCapture(w http.ResponseWriter, r *http.Request) {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load splits", err)
 		return
 	}
+	if scanErr := r.URL.Query().Get("error"); scanErr != "" {
+		data.ScanError = scanErr
+	}
 	s.render(w, r, "owner/capture.html", "Pisah", data)
 }
 
@@ -325,54 +334,36 @@ func (s *Server) handleWebScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := r.ParseMultipartForm(maxReceiptBytes); err != nil {
-		s.renderCapture(w, r, false)
+		s.renderCaptureWithError(w, r, false, "Image too large — try a smaller photo")
 		return
 	}
 	file, _, err := r.FormFile("receipt")
 	if err != nil {
-		http.Redirect(w, r, "/capture", http.StatusSeeOther)
+		s.renderCaptureWithError(w, r, false, "No receipt image selected")
 		return
 	}
 	defer file.Close()
-	img, err := io.ReadAll(io.LimitReader(file, maxReceiptBytes))
-	if err != nil || len(img) == 0 {
-		http.Redirect(w, r, "/capture", http.StatusSeeOther)
-		return
-	}
-
-	parsed, err := scanReceipt(r.Context(), img)
+	img, err := decodeUpload(file, maxReceiptBytes)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "web scan failed", "error", err)
-		s.renderCapture(w, r, false)
+		s.renderCaptureWithError(w, r, false, scanErrorMessage(err))
 		return
 	}
 
-	sstSen := parsed.TaxSen
-	subtotalSen := parsed.SubtotalSen
-	if subtotalSen <= 0 && len(parsed.Items) > 0 {
-		for _, it := range parsed.Items {
-			subtotalSen += it.LineTotalSen
-		}
-	}
-	roundingSen := int64(0)
-	if parsed.TotalSen > 0 && subtotalSen > 0 {
-		rounding := parsed.TotalSen - subtotalSen - sstSen
-		if rounding > 0 && rounding < 100 {
-			roundingSen = rounding
-		}
+	result, err := s.processScan(r.Context(), ownerID, img)
+	if err != nil {
+		slog.ErrorContext(r.Context(), "web scan failed", s.scanLogAttrs("error", err)...)
+		s.renderCaptureWithError(w, r, false, scanErrorMessage(err))
+		return
 	}
 
-	slog.InfoContext(r.Context(), "web scan ok", "merchant", parsed.Merchant, "items", len(parsed.Items), "total_sen", parsed.TotalSen)
-	data := reviewPageData{
-		Merchant:    parsed.Merchant,
-		SubtotalSen: subtotalSen,
-		SstSen:      sstSen,
-		ServiceSen:  0,
-		RoundingSen: roundingSen,
-		TotalSen:    parsed.TotalSen,
-		Items:       parsed.Items,
-		CapturedAt:  time.Now().Format("2 Jan · 3:04 PM"),
-	}
+	slog.InfoContext(r.Context(), "web scan ok", s.scanLogAttrs(
+		"scan_id", result.ScanID,
+		"merchant", result.Receipt.Merchant,
+		"items", len(result.Receipt.Items),
+		"total_sen", result.Receipt.TotalSen,
+		"warnings", len(result.Warnings),
+	)...)
+	data := s.reviewDataFromScan(result, true)
 	s.render(w, r, "owner/review.html", "Review receipt · Pisah", data)
 }
 
@@ -461,6 +452,8 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 		in.OwnerQRURL = prof.OwnerQRURL
 	}
 
+	scanID := strings.TrimSpace(r.FormValue("scan_id"))
+
 	var split Split
 	var err error
 	for attempt := 0; attempt < 5; attempt++ {
@@ -473,6 +466,7 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not create split", err)
 		return
 	}
+	s.deleteScanSessionForOwner(r.Context(), ownerID, scanID)
 	data := sharePageData{
 		Slug:            split.Slug,
 		ShareURL:        s.shareURL(split.Slug),
@@ -550,8 +544,14 @@ func (s *Server) loadTrackPageData(r *http.Request) (trackPageData, bool) {
 			}
 		}
 	}
-	data.AllPaid = allPaid && len(parts) > 1
+	data.AllPaid = trackAllFriendsPaidBanner(collected, split.TotalSen, allPaid, len(parts))
 	return data, true
+}
+
+// trackAllFriendsPaidBanner is true only when every friend marked paid and
+// collected amount reaches the full bill total (not just friends' share).
+func trackAllFriendsPaidBanner(collected, billTotalSen int64, everyFriendMarkedPaid bool, participantCount int) bool {
+	return participantCount > 1 && everyFriendMarkedPaid && collected >= billTotalSen
 }
 
 func (s *Server) handleWebSettingsQRImage(w http.ResponseWriter, r *http.Request) {

@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 The Go server is a single module at the repo root (`go.mod`). It serves both the
 JSON API and the server-rendered web UI (owner + friend flows).
-- `main.go`, `handlers.go`, `store.go`, `storage.go`, `ocr.go`, `jwks.go`: HTTP API, storage, auth, and OCR wiring.
+- `main.go`, `handlers.go`, `store.go`, `storage.go`, `scan*.go`, `jwks.go`: HTTP API, storage, auth, and OCR wiring.
 - `web.go`, `web_handlers.go`, `web_auth.go`: server-rendered web UI handlers.
 - `web/templates/`, `web/static/`: HTML templates and CSS/JS assets (embedded via `go:embed`).
 - `share/`: pure split-math logic with unit tests.
@@ -38,7 +38,7 @@ PRs should include:
 - Screenshots or sample requests when web UI (`web/`) or endpoint behavior changes.
 
 ## Security & Configuration Tips
-Copy `.env.example` to `.env` and fill in `DATABASE_URL`, `SUPABASE_JWT_SECRET`, and AWS credentials before running locally.
+Copy `.env.example` to `.env` and fill in `DATABASE_URL`, `SUPABASE_JWT_SECRET`, and `AWS_REGION` (Bedrock OCR uses your AWS credentials locally, ECS task role in prod).
 Do not commit secrets. Open CORS and in-memory SSE behavior are deliberate simplifications; tighten them before production deployment.
 
 ## Cursor Cloud specific instructions
@@ -66,9 +66,10 @@ gitignored `/workspace/.env` wired for local dev. The startup update script only
   share → paid) via the web UI at `/r/<slug>` (no account needed) or the
   `/api/splits/<slug>/*` endpoints. The web UI loads htmx/Alpine/fonts from public
   CDNs, so the browser needs internet.
-- **Optional, unconfigured features:** AWS Textract OCR (`/scan`, `/api/receipts/scan`)
-  and Supabase Storage DuitNow-QR upload are intentionally not set up; those endpoints
-  fail but everything else works. Create splits with explicit item JSON instead of OCR.
+- **Optional, unconfigured features:** Bedrock OCR (`/scan`, `/api/receipts/scan`)
+  needs model access in the Bedrock console and AWS credentials locally (or ECS task
+  role in prod). Receipt image persistence needs `SUPABASE_SECRET_KEY` and a
+  `receipt-scans` storage bucket. Without these, use manual entry at `/review/manual`.
 - `make test` is DB-free (pure `share/` math + broker + tokens). Lint is `gofmt` +
   `go vet`; note `web.go` and `web_handlers.go` are not gofmt-clean in the current
   tree (pre-existing).

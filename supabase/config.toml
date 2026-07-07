@@ -123,6 +123,11 @@ public = true
 file_size_limit = "5MiB"
 allowed_mime_types = ["image/jpeg", "image/png"]
 
+[storage.buckets.receipt-scans]
+public = true
+file_size_limit = "12MiB"
+allowed_mime_types = ["image/jpeg"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true
