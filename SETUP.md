@@ -64,9 +64,19 @@ supabase link --project-ref <project-ref>
 supabase db push
 ```
 
-Then configure the server for prod from `.env.prod.example`
-(`DATABASE_URL` pooler string, `SUPABASE_URL`, `PUBLIC_BASE_URL`, AWS keys) and
-deploy it (see `infra/` for the Terraform + `deploy.sh` workflow).
+Then configure prod secrets in `infra/terraform/terraform.tfvars` (copy from
+`terraform.tfvars.example`) and deploy (see `infra/` + `deploy.sh`):
+
+| Variable | Where (prod) |
+|----------|----------------|
+| `database_url` | `terraform.tfvars` → SSM |
+| `supabase_publishable_key` | `terraform.tfvars` → SSM |
+| `supabase_secret_key` | `terraform.tfvars` → SSM (Storage: DuitNow QR + receipt scans) |
+| `ocr_provider`, `ocr_model`, `ocr_timeout` | `terraform.tfvars` → ECS env (default: Bedrock) |
+| `supabase_url`, `public_base_url` | `terraform.tfvars` → ECS env |
+| Bedrock OCR auth | ECS **task IAM role** (`bedrock:Converse`) — no API key |
+
+Enable your chosen model in **AWS Console → Bedrock → Model access** (`ap-southeast-1`).
 
 ### Google sign-in (prod Supabase)
 

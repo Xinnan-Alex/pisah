@@ -9,7 +9,7 @@ import (
 func TestNormalizeParsedReceipt_taxInclusiveKFC(t *testing.T) {
 	rec := ParsedReceipt{
 		SubtotalSen: 2168,
-		TaxSen:      130,
+		SstSen:      130,
 		TotalSen:    2298,
 		Items: []ParsedItem{
 			{Name: "SEAWEED SHAKER FRIES (M)", Qty: 1, UnitPriceSen: 599, LineTotalSen: 599},
@@ -30,7 +30,7 @@ func TestNormalizeParsedReceipt_taxInclusiveKFC(t *testing.T) {
 		{LineTotalSen: rec.Items[0].LineTotalSen, Claimants: 1},
 		{LineTotalSen: rec.Items[1].LineTotalSen, Claimants: 1},
 	})
-	owed := share.Owed(claimed, rec.SubtotalSen, rec.TaxSen)
+	owed := share.Owed(claimed, rec.SubtotalSen, rec.SstSen)
 	if owed != rec.TotalSen {
 		t.Fatalf("owed = %d, want total %d", owed, rec.TotalSen)
 	}
@@ -39,7 +39,7 @@ func TestNormalizeParsedReceipt_taxInclusiveKFC(t *testing.T) {
 func TestNormalizeParsedReceipt_taxExclusiveUnchanged(t *testing.T) {
 	rec := ParsedReceipt{
 		SubtotalSen: 9690,
-		TaxSen:      1550,
+		SstSen:      1550,
 		TotalSen:    11240,
 		Items: []ParsedItem{
 			{Name: "Nasi Lemak Ayam", Qty: 1, LineTotalSen: 4500},

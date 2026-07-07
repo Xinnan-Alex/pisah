@@ -6,14 +6,14 @@ server-rendered web UI (owner flow + friend web view).
 - **Language:** Go, stdlib `net/http` (Go 1.22+ routing) — no framework
 - **DB:** Supabase Postgres via `pgx`
 - **Auth:** Supabase JWT (owner) · random bearer token (anonymous friend)
-- **OCR:** AWS Textract `AnalyzeExpense`
+- **OCR:** AWS Bedrock vision (Claude Haiku 4.5 default); legacy OpenAI/Textract via `OCR_PROVIDER`
 - **Live updates:** Server-Sent Events
 - **Money:** integer sen everywhere (1 sen = RM 0.01); never floats
 
 ## Run
 
 ```bash
-cp .env.example .env          # fill in DATABASE_URL, SUPABASE_JWT_SECRET, AWS creds
+cp .env.example .env          # fill in DATABASE_URL, SUPABASE_JWT_SECRET, AWS_REGION for Bedrock OCR
 psql "$DATABASE_URL" -f schema.sql   # or paste schema.sql into the Supabase SQL editor
 make run
 ```
@@ -26,7 +26,9 @@ make test                     # share math + SSE broker + token gen (no DB neede
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| POST | `/api/receipts/scan` | owner | image bytes → parsed receipt (Textract) |
+| POST | `/api/receipts/scan` | owner | image bytes → scan result with warnings + scanId |
+| POST | `/api/receipts/scans/{id}/rescan` | owner | re-run OCR on stored receipt image |
+| GET | `/api/receipts/scans/{id}/image` | owner | receipt thumbnail for review |
 | POST | `/api/splits` | owner | create split from reviewed items → share link |
 | GET  | `/api/splits/{slug}` | public | friend landing: split + items + claim status |
 | POST | `/api/splits/{slug}/join` | public | `{name}` → participant + bearer token |

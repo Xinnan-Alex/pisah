@@ -98,17 +98,24 @@ func (s *Server) handleScan(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "upload your DuitNow QR in payment settings before scanning receipts")
 		return
 	}
-	img, err := io.ReadAll(io.LimitReader(r.Body, maxReceiptBytes))
-	if err != nil || len(img) == 0 {
-		writeErr(w, http.StatusBadRequest, "empty or unreadable image body")
+	img, err := decodeUpload(r.Body, maxReceiptBytes)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, scanErrorMessage(err))
 		return
 	}
-	parsed, err := scanReceipt(r.Context(), img)
+	result, err := s.processScan(r.Context(), ownerID, img)
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusBadGateway, "ocr failed", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, parsed)
+	slog.InfoContext(r.Context(), "api scan ok", s.scanLogAttrs(
+		"scan_id", result.ScanID,
+		"merchant", result.Receipt.Merchant,
+		"items", len(result.Receipt.Items),
+		"total_sen", result.Receipt.TotalSen,
+		"warnings", len(result.Warnings),
+	)...)
+	writeJSON(w, http.StatusOK, result)
 }
 
 // POST /api/splits  (owner)  — create a split from reviewed items, get a share link.

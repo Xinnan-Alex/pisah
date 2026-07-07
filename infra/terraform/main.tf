@@ -11,15 +11,61 @@ locals {
     var.supabase_secret_key != "" ? [
       { name = "SUPABASE_SECRET_KEY", valueFrom = aws_ssm_parameter.supabase_secret_key[0].arn },
     ] : [],
+    var.openai_api_key != "" ? [
+      { name = "OPENAI_API_KEY", valueFrom = aws_ssm_parameter.openai_api_key[0].arn },
+    ] : [],
   )
 
   ssm_secret_arns = concat(
-    [aws_ssm_parameter.database_url.arn, aws_ssm_parameter.supabase_publishable_key.arn],
+    [
+      aws_ssm_parameter.database_url.arn,
+      aws_ssm_parameter.supabase_publishable_key.arn,
+    ],
     [for p in aws_ssm_parameter.supabase_secret_key : p.arn],
+    [for p in aws_ssm_parameter.openai_api_key : p.arn],
   )
+
+  # Bedrock invoke + Marketplace subscribe (required on first Anthropic model call).
+  bedrock_invoke_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:Converse",
+          "bedrock:ConverseStream",
+        ]
+        Resource = [
+          "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/*",
+          "arn:aws:bedrock:*::foundation-model/*",
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "aws-marketplace:ViewSubscriptions",
+          "aws-marketplace:Subscribe",
+        ]
+        Resource = "*"
+      },
+    ]
+  })
+
+  textract_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["textract:AnalyzeExpense"]
+      Resource = ["*"]
+    }]
+  })
 }
 
 # ---- networking: reuse the default VPC + public subnets (no NAT cost) ----
+data "aws_caller_identity" "current" {}
+
 data "aws_vpc" "default" {
   default = true
 }
@@ -66,6 +112,14 @@ resource "aws_ssm_parameter" "supabase_secret_key" {
   value = var.supabase_secret_key
 }
 
+resource "aws_ssm_parameter" "openai_api_key" {
+  count = var.openai_api_key != "" ? 1 : 0
+
+  name  = "/${var.app_name}/OPENAI_API_KEY"
+  type  = "SecureString"
+  value = var.openai_api_key
+}
+
 # ---- IAM ----
 data "aws_iam_policy_document" "assume" {
   statement {
@@ -108,23 +162,39 @@ resource "aws_iam_role_policy" "exec_secrets" {
   })
 }
 
-# Task role: what the app itself may call — Textract receipt OCR.
+# Task role: what the app itself may call at runtime.
 resource "aws_iam_role" "task" {
   name               = "${var.app_name}-task"
   assume_role_policy = data.aws_iam_policy_document.assume.json
 }
 
+resource "aws_iam_role_policy" "task_bedrock" {
+  count = var.ocr_provider == "bedrock" ? 1 : 0
+
+  name   = "bedrock-invoke"
+  role   = aws_iam_role.task.id
+  policy = local.bedrock_invoke_policy
+}
+
 resource "aws_iam_role_policy" "task_textract" {
-  name = "textract"
-  role = aws_iam_role.task.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["textract:AnalyzeExpense"]
-      Resource = ["*"]
-    }]
-  })
+  count = var.ocr_provider == "textract" ? 1 : 0
+
+  name   = "textract"
+  role   = aws_iam_role.task.id
+  policy = local.textract_policy
+}
+
+# Local dev: make run uses AWS_PROFILE → this IAM user, not the ECS task role.
+resource "aws_iam_user_policy" "pisahdamin_bedrock" {
+  name   = "bedrock-invoke"
+  user   = var.local_dev_iam_user
+  policy = local.bedrock_invoke_policy
+}
+
+resource "aws_iam_user_policy" "pisahdamin_textract" {
+  name   = "textract"
+  user   = var.local_dev_iam_user
+  policy = local.textract_policy
 }
 
 # ponytail: self-service access keys only; scope stays on the caller's own user ARN.
@@ -333,6 +403,9 @@ resource "aws_ecs_task_definition" "app" {
       { name = "SUPABASE_URL", value = var.supabase_url },
       { name = "PUBLIC_BASE_URL", value = local.public_base_url },
       { name = "AWS_REGION", value = var.aws_region },
+      { name = "OCR_PROVIDER", value = var.ocr_provider },
+      { name = "OCR_MODEL", value = var.ocr_model },
+      { name = "OCR_TIMEOUT", value = var.ocr_timeout },
     ]
     secrets = local.container_secrets
     logConfiguration = {

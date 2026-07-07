@@ -4,7 +4,7 @@
     <a href="/capture" class="back-chip tap" aria-label="Back">{{template "icon-back"}}</a>
     <div class="topbar-title">
       <h1 class="display" style="font-size:20px">{{.Split.Merchant}}</h1>
-      <p class="muted" style="font-size:12px;margin-top:2px">{{dateFmt .Split.CreatedAt}} · {{rm .Split.TotalSen}} total</p>
+      <p class="muted" style="font-size:12px;margin-top:2px">{{dateFmt .Split.CreatedAt}}</p>
     </div>
   </div>
 
@@ -12,15 +12,19 @@
     <div class="card" style="background:var(--cream);margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
         <span class="display" style="font-size:22px;color:var(--green)">{{rm .CollectedSen}}</span>
-        <span class="muted" style="font-size:13px">of {{rm .FriendsExpectedSen}} collected</span>
+        <span class="muted" style="font-size:13px">of {{rm .Split.TotalSen}} collected</span>
       </div>
-      <div class="progress-bar" style="height:10px"><div class="progress-fill" style="width:{{percent .CollectedSen .FriendsExpectedSen}}%"></div></div>
+      <div class="progress-bar" style="height:10px"><div class="progress-fill" style="width:{{percent .CollectedSen .Split.TotalSen}}%"></div></div>
     </div>
 
-    <label class="hint" style="font-size:11px;letter-spacing:.5px;text-transform:uppercase">Share link</label>
-    <div class="card" style="margin:8px 0 16px">
-      <input readonly value="{{shareDisplayURL .Split.Slug}}" data-full-url="{{shareURL .Split.Slug}}" id="track-share-url" style="background:var(--cream);font-size:13px;padding:12px;margin-bottom:8px">
-      <button type="button" class="btn btn-sm tap" onclick="copyShareLink(document.getElementById('track-share-url').dataset.fullUrl)">Copy link</button>
+    <div class="track-share">
+      <label class="hint" style="font-size:11px;letter-spacing:.5px;text-transform:uppercase">Share link</label>
+      <div class="card share-link-card">
+        <div class="share-link-row">
+          <input readonly class="share-link-input" value="{{shareDisplayURL .Split.Slug}}" data-full-url="{{shareURL .Split.Slug}}" id="track-share-url">
+          <button type="button" class="icon-chip tap share-link-btn" id="track-share-btn" aria-label="Share link" onclick="shareNative('{{shareURL .Split.Slug}}','Split the bill with me on Pisah 👉 {{shareDisplayURL .Split.Slug}}', document.getElementById('track-share-btn'))">{{template "icon-share"}}</button>
+        </div>
+      </div>
     </div>
 
     <div id="track-panel" hx-ext="sse" sse-connect="/api/splits/{{.Split.Slug}}/events">

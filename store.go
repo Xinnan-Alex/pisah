@@ -498,3 +498,88 @@ func (st *Store) FriendsExpectedSen(ctx context.Context, splitID string) (int64,
 	).Scan(&sum)
 	return sum, err
 }
+
+// ---- scan sessions ----
+
+type ScanSession struct {
+	ID       string
+	OwnerID  string
+	ImageURL string
+}
+
+const scanSessionTTL = 24 * time.Hour
+
+func (st *Store) NewScanID(ctx context.Context) (string, error) {
+	var id string
+	err := st.pool.QueryRow(ctx, `select gen_random_uuid()`).Scan(&id)
+	return id, err
+}
+
+func (st *Store) CreateScanSession(ctx context.Context, ownerID, scanID, imageURL string) (ScanSession, error) {
+	var s ScanSession
+	expires := time.Now().Add(scanSessionTTL)
+	err := st.pool.QueryRow(ctx, `
+		insert into scan_sessions (id, owner_id, image_url, expires_at)
+		values ($1, $2, $3, $4)
+		returning id, owner_id, image_url`, scanID, ownerID, imageURL, expires,
+	).Scan(&s.ID, &s.OwnerID, &s.ImageURL)
+	return s, err
+}
+
+func (st *Store) SetScanSessionImageURL(ctx context.Context, ownerID, scanID, imageURL string) error {
+	tag, err := st.pool.Exec(ctx, `
+		update scan_sessions set image_url = $1
+		where id = $2 and owner_id = $3`, imageURL, scanID, ownerID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return errNotFound
+	}
+	return nil
+}
+
+func (st *Store) GetScanSession(ctx context.Context, ownerID, scanID string) (ScanSession, error) {
+	var s ScanSession
+	err := st.pool.QueryRow(ctx, `
+		select id, owner_id, image_url
+		from scan_sessions
+		where id = $1 and owner_id = $2 and expires_at > now()`, scanID, ownerID,
+	).Scan(&s.ID, &s.OwnerID, &s.ImageURL)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ScanSession{}, errNotFound
+	}
+	return s, err
+}
+
+func (st *Store) DeleteScanSession(ctx context.Context, ownerID, scanID string) (string, error) {
+	var imageURL string
+	err := st.pool.QueryRow(ctx, `
+		delete from scan_sessions
+		where id = $1 and owner_id = $2
+		returning image_url`, scanID, ownerID,
+	).Scan(&imageURL)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", errNotFound
+	}
+	return imageURL, err
+}
+
+func (st *Store) CleanupExpiredScanSessions(ctx context.Context) ([]string, error) {
+	rows, err := st.pool.Query(ctx, `
+		delete from scan_sessions where expires_at <= now()
+		returning image_url`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var urls []string
+	for rows.Next() {
+		var u string
+		if err := rows.Scan(&u); err != nil {
+			return urls, err
+		}
+		urls = append(urls, u)
+	}
+	return urls, rows.Err()
+}
