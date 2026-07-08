@@ -1,6 +1,6 @@
 {{define "friend/pick.html"}}
 <div x-data="friendPick()" data-pick-b64="{{b64json .Pick}}" style="flex:1;display:flex;flex-direction:column">
-  <header class="pad" style="padding-top:24px;padding-bottom:10px;background:#fff">
+  <header class="pad" style="padding-top:24px;padding-bottom:10px;background:var(--surface)">
     <h2 class="display" style="font-size:20px">Hi {{.Me}} 👋</h2>
     <div class="muted" style="font-size:13px;margin-top:2px">Tap the items you ordered</div>
   </header>
@@ -12,10 +12,10 @@
           <button type="button" class="tap item" :class="{'selected': isSelected(it.id)}" @click="toggle(it.id)">
             <span class="check" aria-hidden="true"><span class="tick" x-show="isSelected(it.id)"></span></span>
             <span style="flex:1;min-width:0">
-              <span style="display:block;font:700 14px 'JetBrains Mono'" x-text="it.name"></span>
+              <span style="display:block;font:700 14px var(--font)" x-text="it.name"></span>
               <span class="muted" style="display:block;font-size:11px" x-text="formatRM(it.lineTotalSen)"></span>
             </span>
-            <span style="font:700 12px 'JetBrains Mono';color:var(--orange)" x-show="isSelected(it.id)">You</span>
+            <span style="font:700 12px var(--font);color:var(--ink)" x-show="isSelected(it.id)">You</span>
           </button>
         </template>
         <!-- Item already claimed by others: shared card with who's on it + join pill -->
@@ -24,16 +24,16 @@
             <div class="shared-item-head">
               <span style="display:flex;align-items:center;min-width:0">
                 <span class="shared-tag">SHARED</span>
-                <span style="font:700 14px 'JetBrains Mono';overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-text="it.name"></span>
+                <span style="font:700 14px var(--font);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-text="it.name"></span>
               </span>
-              <span class="muted" style="font:600 12px 'JetBrains Mono';white-space:nowrap" x-text="formatRM(it.lineTotalSen)"></span>
+              <span class="muted" style="font:600 12px var(--font);white-space:nowrap" x-text="formatRM(it.lineTotalSen)"></span>
             </div>
             <div class="shared-item-foot">
               <span style="display:flex;align-items:center;min-width:0">
                 <template x-for="(n, idx) in others(it)" :key="n">
                   <span class="mini-avatar" :style="'background:'+avatarColor(n)+(idx>0?';margin-left:-8px':'')" x-text="initial(n)"></span>
                 </template>
-                <span class="muted" style="font:500 11px 'JetBrains Mono';margin-left:9px;white-space:nowrap" x-text="splitWays(it)"></span>
+                <span class="muted" style="font:500 11px var(--font);margin-left:9px;white-space:nowrap" x-text="splitWays(it)"></span>
               </span>
               <button type="button" class="tap shared-pill" :class="{'in': isSelected(it.id)}" @click="toggle(it.id)"
                 :aria-pressed="isSelected(it.id)" x-text="isSelected(it.id) ? '✓ You\'re in' : '+ I\'m in'"></button>
