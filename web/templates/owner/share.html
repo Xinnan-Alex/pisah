@@ -6,7 +6,7 @@
   </div>
 
   <div style="text-align:center;margin:20px 0">
-    <div style="width:64px;height:64px;border-radius:50%;background:var(--peach);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;color:var(--green)">✓</div>
+    <div style="width:64px;height:64px;border-radius:50%;background:var(--line);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;color:var(--ink)">✓</div>
     <h1 class="display" style="font-size:25px">Split is ready!</h1>
     <p class="muted" style="font-size:13px;margin-top:8px;line-height:1.5">Send this link to friends so they can pick their items and pay you back.</p>
   </div>
@@ -14,7 +14,7 @@
   <div class="card" style="margin-bottom:14px">
     <label class="hint" style="font-size:11px;display:block;margin-bottom:8px">Share link</label>
     <div style="display:flex;gap:8px;align-items:center">
-      <input readonly value="{{.ShareDisplayURL}}" data-full-url="{{.ShareURL}}" id="share-url" style="background:var(--cream);font-size:13px;padding:12px">
+      <input readonly value="{{.ShareDisplayURL}}" data-full-url="{{.ShareURL}}" id="share-url" style="background:var(--canvas);font-size:13px;padding:12px">
       <button type="button" class="btn btn-sm tap" onclick="copyShareLink(document.getElementById('share-url').dataset.fullUrl)" id="copy-msg">Copy link</button>
     </div>
     <button type="button" class="btn tap" style="margin-top:12px" onclick="shareNative('{{.ShareURL}}','Split the bill with me on Pisah 👉 {{.ShareDisplayURL}}')">Share link</button>
