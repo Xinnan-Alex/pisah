@@ -1,11 +1,21 @@
 {{define "owner/settings.html"}}
 <div class="topbar">
   <a href="/capture" class="back-chip tap" aria-label="Back">{{template "icon-back"}}</a>
-  <h1 class="display" style="font-size:18px">Payment settings</h1>
+  <h1 class="display" style="font-size:18px">Settings</h1>
 </div>
 
 <div class="pad" style="flex:1;padding-bottom:32px">
-  <p class="hint" style="font:600 11px 'JetBrains Mono';letter-spacing:.5px;text-transform:uppercase;margin:16px 0 10px">Your DuitNow QR</p>
+  <p class="hint" style="font:600 11px 'JetBrains Mono';letter-spacing:.5px;text-transform:uppercase;margin:16px 0 10px">Your name</p>
+  <div class="card">
+    <form method="post" action="/settings" onsubmit="event.preventDefault(); fetch('/settings',{method:'PUT',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(new FormData(this))}).then(()=>{const t=document.getElementById('name-saved');if(t){t.hidden=false;setTimeout(()=>t.hidden=true,1500);}});">
+      <input type="text" name="display_name" value="{{.Profile.DisplayName}}" placeholder="Your name" required style="width:100%;padding:12px 14px;font-size:15px">
+      <p class="muted" style="font-size:12px;margin:8px 0 12px;line-height:1.4">Shown to friends on split links.</p>
+      <button type="submit" class="btn btn-sm tap" style="width:auto">Save name</button>
+      <span id="name-saved" class="hint" hidden style="margin-left:10px;font-size:12px;color:var(--green)">Saved</span>
+    </form>
+  </div>
+
+  <p class="hint" style="font:600 11px 'JetBrains Mono';letter-spacing:.5px;text-transform:uppercase;margin:24px 0 10px">Your DuitNow QR</p>
   <div class="card" style="display:flex;gap:16px;align-items:center">
     {{if hasQR .Profile.OwnerQRURL}}
     <img src="/settings/qr-image" alt="Your DuitNow QR" style="width:88px;height:88px;object-fit:contain;border-radius:12px;background:var(--paper);border:1px solid #EFE6D8">

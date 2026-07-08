@@ -16,6 +16,7 @@ import (
 const (
 	cookieAccess  = "pisah_at"
 	cookieRefresh = "pisah_rt"
+	cookieAnon    = "pisah_anon"
 )
 
 func (s *Server) setSessionCookies(w http.ResponseWriter, access, refresh string) {
@@ -136,17 +137,43 @@ func (s *Server) ownerFromRequest(w http.ResponseWriter, r *http.Request) (strin
 	return ownerID, claims, true
 }
 
-func (s *Server) requireOwnerWeb(next http.HandlerFunc) http.HandlerFunc {
+func (s *Server) deviceOwnerID(w http.ResponseWriter, r *http.Request) string {
+	if c, err := r.Cookie(cookieAnon); err == nil && c.Value != "" {
+		return c.Value
+	}
+	id := newUUID()
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieAnon,
+		Value:    id,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   60 * 60 * 24 * 365,
+	})
+	return id
+}
+
+// deviceWeb stamps a per-device owner id (pisah_anon cookie). Auth is optional/legacy.
+func (s *Server) deviceWeb(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ownerID, claims, ok := s.ownerFromRequest(w, r)
-		if !ok {
-			http.Redirect(w, r, "/signin", http.StatusSeeOther)
-			return
-		}
+		ownerID := s.deviceOwnerID(w, r)
 		ctx := context.WithValue(r.Context(), ctxOwnerID, ownerID)
-		ctx = context.WithValue(ctx, ctxOwnerClaims, claims)
+		ctx = context.WithValue(ctx, ctxSignedIn, false)
 		next(w, r.WithContext(ctx))
 	}
+}
+
+// ownerOrAnonWeb is kept as an alias for compatibility with older call sites.
+func (s *Server) ownerOrAnonWeb(next http.HandlerFunc) http.HandlerFunc {
+	return s.deviceWeb(next)
+}
+
+func (s *Server) requireOwnerWeb(next http.HandlerFunc) http.HandlerFunc {
+	return s.deviceWeb(next)
+}
+
+func signedInFromRequest(r *http.Request) bool {
+	return false
 }
 
 func participantCookieName(slug string) string {

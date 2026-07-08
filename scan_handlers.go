@@ -136,7 +136,7 @@ func (s *Server) serveScanImage(w http.ResponseWriter, r *http.Request, ownerID,
 
 func (s *Server) handleWebRescan(w http.ResponseWriter, r *http.Request) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
-	if !s.ownerQRRequired(w, r, ownerID) {
+	if !s.ownerProfileRequired(w, r, ownerID) {
 		return
 	}
 	scanID := r.PathValue("id")
@@ -169,7 +169,7 @@ func (s *Server) handleWebRescan(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWebManualReview(w http.ResponseWriter, r *http.Request) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
-	if !s.ownerQRRequired(w, r, ownerID) {
+	if !s.ownerProfileRequired(w, r, ownerID) {
 		return
 	}
 	data := reviewPageData{

@@ -40,6 +40,7 @@
       <form method="post" action="/splits" class="review-form" style="flex:1;display:flex;flex-direction:column;min-width:0">
         <input type="hidden" name="merchant" x-model="merchant">
         <input type="hidden" name="scan_id" value="{{.ScanID}}">
+
         <div class="card" style="margin-top:0;padding:8px 16px">
           <template x-for="(it, i) in items" :key="i">
             <div class="review-item" :class="{'review-item-low': it.confidence > 0 && it.confidence < 0.7}" :style="!it.includedInSplit ? 'opacity:.65' : ''">

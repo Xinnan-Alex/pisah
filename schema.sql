@@ -57,14 +57,16 @@ create table if not exists claims (
 create index if not exists claims_item_idx on claims(item_id);
 
 create table if not exists owner_profiles (
-    owner_id            uuid primary key,        -- auth.users.id
+    owner_id            uuid primary key,        -- device owner id (pisah_anon cookie) or legacy auth.users.id
+    display_name        text not null default '',
     owner_qr_url        text,                    -- Supabase Storage public URL
     auto_fill_amount    boolean not null default true,
-    onboarding_seen_at  timestamptz,             -- first-time welcome dismissed
+    onboarding_seen_at  timestamptz,             -- first-time walkthrough dismissed
     updated_at          timestamptz not null default now()
 );
 
 alter table owner_profiles add column if not exists onboarding_seen_at timestamptz;
+alter table owner_profiles add column if not exists display_name text not null default '';
 
 create table if not exists scan_sessions (
     id          uuid primary key default gen_random_uuid(),

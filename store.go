@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -416,6 +417,7 @@ func (st *Store) Participants(ctx context.Context, splitID string) ([]Participan
 }
 
 type OwnerProfile struct {
+	DisplayName      string     `json:"displayName"`
 	OwnerQRURL       *string    `json:"ownerQrUrl"`
 	AutoFillAmount   bool       `json:"autoFillAmount"`
 	OnboardingSeenAt *time.Time `json:"onboardingSeenAt,omitempty"`
@@ -425,12 +427,16 @@ func ownerProfileHasQR(p OwnerProfile) bool {
 	return p.OwnerQRURL != nil && *p.OwnerQRURL != ""
 }
 
+func ownerProfileReady(p OwnerProfile) bool {
+	return strings.TrimSpace(p.DisplayName) != "" && ownerProfileHasQR(p)
+}
+
 func (st *Store) GetOwnerProfile(ctx context.Context, ownerID string) (OwnerProfile, error) {
 	var p OwnerProfile
 	err := st.pool.QueryRow(ctx, `
-		select owner_qr_url, auto_fill_amount, onboarding_seen_at
+		select coalesce(display_name, ''), owner_qr_url, auto_fill_amount, onboarding_seen_at
 		from owner_profiles where owner_id = $1`, ownerID,
-	).Scan(&p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
+	).Scan(&p.DisplayName, &p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
 	if err == nil {
 		return p, nil
 	}
@@ -439,10 +445,40 @@ func (st *Store) GetOwnerProfile(ctx context.Context, ownerID string) (OwnerProf
 	}
 	// Table not migrated yet — return defaults so the settings UI still loads.
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+	if errors.As(err, &pgErr) && (pgErr.Code == "42P01" || pgErr.Code == "42703") {
 		return OwnerProfile{AutoFillAmount: true}, nil
 	}
 	return OwnerProfile{}, err
+}
+
+func (st *Store) SetOwnerProfile(ctx context.Context, ownerID, displayName, qrURL string) (OwnerProfile, error) {
+	var p OwnerProfile
+	err := st.pool.QueryRow(ctx, `
+		insert into owner_profiles (owner_id, display_name, owner_qr_url, onboarding_seen_at)
+		values ($1, $2, nullif($3, ''), now())
+		on conflict (owner_id) do update set
+			display_name = excluded.display_name,
+			owner_qr_url = coalesce(nullif(excluded.owner_qr_url, ''), owner_profiles.owner_qr_url),
+			onboarding_seen_at = coalesce(owner_profiles.onboarding_seen_at, now()),
+			updated_at = now()
+		returning coalesce(display_name, ''), owner_qr_url, auto_fill_amount, onboarding_seen_at`,
+		ownerID, displayName, qrURL,
+	).Scan(&p.DisplayName, &p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
+	return p, err
+}
+
+func (st *Store) SetOwnerDisplayName(ctx context.Context, ownerID, displayName string) (OwnerProfile, error) {
+	var p OwnerProfile
+	err := st.pool.QueryRow(ctx, `
+		insert into owner_profiles (owner_id, display_name)
+		values ($1, $2)
+		on conflict (owner_id) do update set
+			display_name = excluded.display_name,
+			updated_at = now()
+		returning coalesce(display_name, ''), owner_qr_url, auto_fill_amount, onboarding_seen_at`,
+		ownerID, displayName,
+	).Scan(&p.DisplayName, &p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
+	return p, err
 }
 
 func (st *Store) SetOwnerQRURL(ctx context.Context, ownerID, qrURL string) (OwnerProfile, error) {
@@ -453,8 +489,8 @@ func (st *Store) SetOwnerQRURL(ctx context.Context, ownerID, qrURL string) (Owne
 		on conflict (owner_id) do update set
 			owner_qr_url = excluded.owner_qr_url,
 			updated_at = now()
-		returning owner_qr_url, auto_fill_amount, onboarding_seen_at`, ownerID, qrURL,
-	).Scan(&p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
+		returning coalesce(display_name, ''), owner_qr_url, auto_fill_amount, onboarding_seen_at`, ownerID, qrURL,
+	).Scan(&p.DisplayName, &p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
 	return p, err
 }
 
@@ -466,8 +502,8 @@ func (st *Store) SetAutoFillAmount(ctx context.Context, ownerID string, autoFill
 		on conflict (owner_id) do update set
 			auto_fill_amount = excluded.auto_fill_amount,
 			updated_at = now()
-		returning owner_qr_url, auto_fill_amount, onboarding_seen_at`, ownerID, autoFill,
-	).Scan(&p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
+		returning coalesce(display_name, ''), owner_qr_url, auto_fill_amount, onboarding_seen_at`, ownerID, autoFill,
+	).Scan(&p.DisplayName, &p.OwnerQRURL, &p.AutoFillAmount, &p.OnboardingSeenAt)
 	return p, err
 }
 

@@ -15,8 +15,7 @@ func TestWebTemplatesParse(t *testing.T) {
 	}
 	pages := []string{
 		"layout.html",
-		"owner/signin.html",
-		"owner/signup.html",
+		"owner/setup.html",
 		"owner/capture.html",
 		"owner/review.html",
 		"owner/share.html",
@@ -30,7 +29,6 @@ func TestWebTemplatesParse(t *testing.T) {
 		"partials/splits_list.html",
 		"partials/track_participants.html",
 		"partials/onboarding_walkthrough.html",
-		"auth/callback.html",
 	}
 	for _, p := range pages {
 		if s.templates.Lookup(p) == nil {
@@ -92,11 +90,12 @@ func TestCapturePageOnboardingAndQRGate(t *testing.T) {
 		t.Fatalf("initWeb: %v", err)
 	}
 
-	t.Run("first visit shows welcome and qr gate", func(t *testing.T) {
+	t.Run("missing qr shows setup gate", func(t *testing.T) {
 		data := capturePageData{
 			Profile:        OwnerProfile{AutoFillAmount: true},
-			ShowOnboarding: true,
+			ShowOnboarding: false,
 			HasQR:          false,
+			HasName:        false,
 		}
 		var buf bytes.Buffer
 		if err := s.templates.ExecuteTemplate(&buf, "owner/capture.html", data); err != nil {
@@ -104,24 +103,30 @@ func TestCapturePageOnboardingAndQRGate(t *testing.T) {
 		}
 		out := buf.String()
 		for _, want := range []string{
-			`data-show-onboarding="1"`,
 			`id="onboarding-modal"`,
 			`aria-label="How to use Pisah"`,
-			`Upload your DuitNow QR`,
+			`Finish your profile`,
 			`viewfinder-section-locked`,
-			`Upload QR to unlock scanning`,
+			`href="/setup"`,
+			`aria-label="Payment settings"`,
 		} {
 			if !strings.Contains(out, want) {
 				t.Fatalf("expected %q in capture page, got:\n%s", want, out)
 			}
 		}
+		for _, bad := range []string{`Sign in`, `Sign out`, `Not signed in`} {
+			if strings.Contains(out, bad) {
+				t.Fatalf("unexpected %q in capture page", bad)
+			}
+		}
 	})
 
-	t.Run("summary strip always visible", func(t *testing.T) {
+	t.Run("summary strip visible with profile", func(t *testing.T) {
 		data := capturePageData{
-			Profile:        OwnerProfile{AutoFillAmount: true},
+			Profile:        OwnerProfile{DisplayName: "Alex", AutoFillAmount: true},
 			ShowOnboarding: false,
 			HasQR:          true,
+			HasName:        true,
 		}
 		var buf bytes.Buffer
 		if err := s.templates.ExecuteTemplate(&buf, "owner/capture.html", data); err != nil {
@@ -134,11 +139,6 @@ func TestCapturePageOnboardingAndQRGate(t *testing.T) {
 		if strings.Contains(out, `id="capture-splits"`) {
 			t.Fatal("expected no splits section when list is empty")
 		}
-		for _, bad := range []string{"⚙", "↪"} {
-			if strings.Contains(out, bad) {
-				t.Fatalf("expected SVG header icons, found unicode %q", bad)
-			}
-		}
 		if !strings.Contains(out, `aria-label="Payment settings"`) || !strings.Contains(out, `viewBox="0 0 24 24"`) {
 			t.Fatal("expected SVG icons in capture header")
 		}
@@ -147,9 +147,10 @@ func TestCapturePageOnboardingAndQRGate(t *testing.T) {
 	t.Run("returning owner with qr unlocks scanning", func(t *testing.T) {
 		qr := "https://example.com/qr.png"
 		data := capturePageData{
-			Profile:        OwnerProfile{OwnerQRURL: &qr, AutoFillAmount: true},
+			Profile:        OwnerProfile{DisplayName: "Alex", OwnerQRURL: &qr, AutoFillAmount: true},
 			ShowOnboarding: false,
 			HasQR:          true,
+			HasName:        true,
 		}
 		var buf bytes.Buffer
 		if err := s.templates.ExecuteTemplate(&buf, "owner/capture.html", data); err != nil {
@@ -182,16 +183,29 @@ func TestOwnerProfileHasQR(t *testing.T) {
 	}
 }
 
+func TestOwnerProfileReady(t *testing.T) {
+	qr := "https://example.com/qr.png"
+	if ownerProfileReady(OwnerProfile{OwnerQRURL: &qr}) {
+		t.Fatal("QR without name should not be ready")
+	}
+	if ownerProfileReady(OwnerProfile{DisplayName: "Alex"}) {
+		t.Fatal("name without QR should not be ready")
+	}
+	if !ownerProfileReady(OwnerProfile{DisplayName: "Alex", OwnerQRURL: &qr}) {
+		t.Fatal("name + QR should be ready")
+	}
+}
+
 func TestPercentCollected(t *testing.T) {
 	tests := []struct {
 		collected, total int64
 		want             int
 	}{
 		{0, 9080, 0},
-		{2959, 9080, 32},  // friends paid, bill not fully collected
-		{9080, 9080, 100}, // full bill collected
+		{2959, 9080, 32},
+		{9080, 9080, 100},
 		{100, 0, 0},
-		{150, 100, 100}, // capped at 100
+		{150, 100, 100},
 	}
 	for _, tc := range tests {
 		if got := percentCollected(tc.collected, tc.total); got != tc.want {
@@ -214,7 +228,7 @@ func TestTrackPageProgressUsesBillTotal(t *testing.T) {
 			CreatedAt: &created,
 		},
 		CollectedSen:       2959,
-		FriendsExpectedSen: 2959, // all friends paid their share
+		FriendsExpectedSen: 2959,
 	}
 	var buf bytes.Buffer
 	if err := s.templates.ExecuteTemplate(&buf, "owner/track.html", data); err != nil {
@@ -267,7 +281,6 @@ func TestTrackPageAllPaidRequiresFullBill(t *testing.T) {
 		t.Fatalf("initWeb: %v", err)
 	}
 	created := mustParseTime(t, "2026-07-07T12:00:00Z")
-	// All friends marked paid but bill not fully collected — no success banner.
 	data := trackPageData{
 		Split: Split{
 			Merchant:  "KFC",
@@ -340,5 +353,31 @@ func TestSharePageShowsShortURL(t *testing.T) {
 	}
 	if !strings.Contains(out, `data-full-url="https://pisah.leongxinnan.com/r/sLJi"`) {
 		t.Fatalf("expected full URL in data-full-url, got:\n%s", out)
+	}
+}
+
+func TestSetupPageRenders(t *testing.T) {
+	s := &Server{cfg: Config{PublicBaseURL: "https://split.my"}}
+	if err := s.initWeb(); err != nil {
+		t.Fatalf("initWeb: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := s.templates.ExecuteTemplate(&buf, "owner/setup.html", setupPageData{
+		Name: "Alex",
+	}); err != nil {
+		t.Fatalf("render setup: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		`action="/setup"`,
+		`name="display_name"`,
+		`name="qr"`,
+		`Welcome to Pisah`,
+		`qrCropper`,
+		`qr-crop-stage`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in setup page", want)
+		}
 	}
 }

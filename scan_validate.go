@@ -37,6 +37,115 @@ func taxTotalSen(rec *ParsedReceipt) int64 {
 	return rec.SstSen + rec.ServiceSen + rec.RoundingSen
 }
 
+// repairMisassignedTotals fixes common LLM mistakes such as putting the printed
+// Total into sstSen, or routing Malaysian "Service Tax" into serviceSen.
+func repairMisassignedTotals(rec *ParsedReceipt) {
+	if rec.SubtotalSen <= 0 {
+		return
+	}
+
+	// Malaysian "Service Tax @N%" is SST — model often puts it in serviceSen.
+	if rec.SstSen == 0 && rec.ServiceSen > 0 && rec.ServiceSen < rec.SubtotalSen/2 {
+		if rec.TotalSen > 0 && senClose(rec.SubtotalSen+rec.ServiceSen+rec.RoundingSen, rec.TotalSen) {
+			rec.SstSen = rec.ServiceSen
+			rec.ServiceSen = 0
+		}
+	}
+
+	// Tax in serviceSen and printed Total wrongly in sstSen.
+	if rec.SstSen > rec.SubtotalSen && rec.ServiceSen > 0 && rec.ServiceSen < rec.SubtotalSen/2 {
+		if senClose(rec.SubtotalSen+rec.ServiceSen, rec.SstSen) {
+			prevTotal := rec.TotalSen
+			rec.TotalSen = rec.SstSen
+			rec.SstSen = rec.ServiceSen
+			rec.ServiceSen = 0
+			if rec.RoundingSen == 0 && prevTotal > rec.TotalSen && prevTotal-rec.TotalSen <= 100 {
+				rec.RoundingSen = prevTotal - rec.TotalSen
+			}
+			return
+		}
+	}
+
+	// Printed Total landed in sstSen instead of totalSen.
+	if rec.SstSen >= rec.SubtotalSen*95/100 {
+		impliedTax := rec.SstSen - rec.SubtotalSen - rec.ServiceSen - rec.RoundingSen
+		if impliedTax <= 0 || impliedTax > rec.SubtotalSen*20/100 {
+			return
+		}
+		prevTotal := rec.TotalSen
+		if prevTotal == 0 || prevTotal == rec.SstSen || senClose(prevTotal, rec.SstSen) || senClose(prevTotal, rec.SstSen+rec.RoundingSen) {
+			rec.TotalSen = rec.SstSen
+			rec.SstSen = impliedTax
+			if rec.RoundingSen == 0 && prevTotal > rec.TotalSen && prevTotal-rec.TotalSen <= 100 {
+				rec.RoundingSen = prevTotal - rec.TotalSen
+			}
+		}
+	}
+}
+
+// isSummaryLineAmount reports whether amt matches a receipt summary figure (total,
+// payment, subtotal, etc.) rather than a plausible single-item menu price.
+func isSummaryLineAmount(amt int64, rec *ParsedReceipt) bool {
+	if amt <= 0 {
+		return false
+	}
+	seen := map[int64]bool{}
+	add := func(v int64) {
+		if v > 0 {
+			seen[v] = true
+		}
+	}
+	add(rec.TotalSen)
+	add(rec.SubtotalSen)
+	add(rec.SstSen + rec.ServiceSen)
+	if rec.SubtotalSen > 0 {
+		add(rec.SubtotalSen + rec.SstSen + rec.ServiceSen + rec.RoundingSen)
+	}
+	if rec.TotalSen > 0 {
+		add(rec.TotalSen + rec.RoundingSen)
+	}
+	for v := range seen {
+		if senClose(amt, v) {
+			return true
+		}
+	}
+	return false
+}
+
+// repairMisassignedLineItems fixes line items that picked up a summary amount
+// (e.g. Payment 23.00) instead of the menu price (16.99).
+func repairMisassignedLineItems(rec *ParsedReceipt) {
+	if len(rec.Items) < 2 || rec.TotalSen <= 0 {
+		return
+	}
+	for i := range rec.Items {
+		amt := rec.Items[i].LineTotalSen
+		if !isSummaryLineAmount(amt, rec) {
+			continue
+		}
+		var othersSum int64
+		for j, it := range rec.Items {
+			if j != i {
+				othersSum += it.LineTotalSen
+			}
+		}
+		inferred := rec.TotalSen - othersSum
+		if inferred <= 0 || inferred >= amt {
+			continue
+		}
+		if inferred < 50 { // less than RM 0.50
+			continue
+		}
+		if !senClose(othersSum+inferred, rec.TotalSen) {
+			continue
+		}
+		rec.Items[i].LineTotalSen = inferred
+		if rec.Items[i].Qty > 0 {
+			rec.Items[i].UnitPriceSen = inferred / int64(rec.Items[i].Qty)
+		}
+	}
+}
+
 // enrichParsedReceipt fills missing subtotal/rounding from line items and totals.
 func enrichParsedReceipt(rec *ParsedReceipt) {
 	if rec.SubtotalSen <= 0 && len(rec.Items) > 0 {
