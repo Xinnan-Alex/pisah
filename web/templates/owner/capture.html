@@ -25,7 +25,7 @@
 
   {{if not .HasQR}}
   <div class="card qr-setup-card" style="margin-bottom:16px">
-    <p class="hint" style="font:600 11px 'JetBrains Mono';letter-spacing:.5px;text-transform:uppercase;margin:0 0 10px">Payment setup</p>
+    <p class="section-label">Payment setup</p>
     <h2 class="display" style="font-size:20px;line-height:1.2">Finish your profile</h2>
     <p class="muted" style="font-size:13px;margin:8px 0 16px;line-height:1.45">Add your name and DuitNow QR so friends can pay you back.</p>
     <a href="/setup" class="btn tap" style="display:inline-block;width:auto">Set up now</a>
@@ -41,7 +41,7 @@
   {{template "partials/summary_strip.html" .}}
   {{if .Splits}}
   <div id="capture-splits" class="capture-splits">
-    <div class="hint" style="font:600 11px 'JetBrains Mono';letter-spacing:.5px;text-transform:uppercase">Your splits</div>
+    <div class="section-label">Your splits</div>
     <div id="splits-list">
       {{template "partials/splits_list.html" .}}
     </div>
@@ -126,7 +126,7 @@
   <div class="onboarding-backdrop" onclick="closeOnboardingModal(false)"></div>
   <div class="onboarding-panel card">
     <button type="button" class="onboarding-close tap" aria-label="Close" onclick="closeOnboardingModal(false)">×</button>
-    <p class="hint" style="font:600 11px 'JetBrains Mono';letter-spacing:.5px;text-transform:uppercase;margin:0 0 8px">Welcome to Pisah</p>
+    <p class="section-label" style="margin-bottom:8px">Welcome to Pisah</p>
     <h2 id="onboarding-title" class="display" style="font-size:22px;line-height:1.15;margin-bottom:16px">Split bills in four steps</h2>
     {{template "partials/onboarding_walkthrough.html" .}}
     <div class="onboarding-actions">

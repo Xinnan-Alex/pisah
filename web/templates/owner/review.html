@@ -1,6 +1,6 @@
 {{define "owner/review.html"}}
 <script type="application/json" id="receipt-data">{{json .}}</script>
-<div x-data="receiptReview()" style="flex:1;display:flex;flex-direction:column;background:var(--cream)">
+<div x-data="receiptReview()" style="flex:1;display:flex;flex-direction:column;background:var(--canvas)">
   <div class="topbar">
     <a href="/capture" class="back-chip tap" aria-label="Back">{{template "icon-back"}}</a>
     <div class="topbar-title" style="flex:1;min-width:0">
@@ -73,7 +73,7 @@
           <div class="row"><span class="muted">Rounding</span><input type="number" step="0.01" :value="(roundingSen/100).toFixed(2)" @input="roundingSen=Math.round(parseFloat($event.target.value||0)*100)" style="width:100px;padding:8px;text-align:right"></div>
           <input type="hidden" name="subtotal" :value="subtotalSen || items.reduce((s,it)=>s+(+it.lineTotalSen||0),0)">
           <input type="hidden" name="total" :value="totalSen || computedTotal">
-          <div class="row" style="padding-top:12px;border:none"><span class="display" style="font-size:18px;color:var(--orange)">Total</span><span class="display" style="font-size:20px;color:var(--orange)" x-text="formatRM(totalSen || computedTotal)">{{rm .TotalSen}}</span></div>
+          <div class="row" style="padding-top:12px;border:none"><span class="display" style="font-size:18px;color:var(--ink)">Total</span><span class="display" style="font-size:20px;color:var(--ink)" x-text="formatRM(totalSen || computedTotal)">{{rm .TotalSen}}</span></div>
           <div class="row reconcile-row" x-show="hasTotalMismatch" style="border:none;padding-top:8px">
             <span class="hint" style="font-size:12px;line-height:1.4" x-text="reconcileText()"></span>
           </div>

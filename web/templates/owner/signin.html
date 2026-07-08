@@ -1,14 +1,14 @@
 {{define "owner/signin.html"}}
 <div class="pad" style="flex:1;padding-top:80px;padding-bottom:40px">
   <div style="margin-bottom:32px">
-    <h1 class="display" style="font-size:40px;font-weight:800">Pisah<span style="color:var(--orange)"> ·</span></h1>
+    <h1 class="display brand-mark">Pisah<span class="brand-dot"> ·</span></h1>
     <p class="muted" style="font-size:14px;margin-top:6px">Sign in to keep splitting</p>
   </div>
   {{if .Error}}
-  <div role="alert" style="background:#FDEAE3;color:var(--orange);padding:12px 14px;border-radius:12px;margin-bottom:16px;font-size:13px;font-weight:600">{{.Error}}</div>
+  <div role="alert" class="alert-error">{{.Error}}</div>
   {{end}}
   {{if .Info}}
-  <div role="status" style="background:#E8F5EF;color:var(--green);padding:12px 14px;border-radius:12px;margin-bottom:16px;font-size:13px;font-weight:600">{{.Info}}</div>
+  <div role="status" class="alert-info">{{.Info}}</div>
   {{end}}
   <form method="post" action="/signin">
     <label for="email" class="hint" style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">Email</label>
@@ -28,7 +28,7 @@
   </a>
   {{end}}
   <p class="hint" style="text-align:center;font-size:13px;margin-top:22px">
-    New here? <a href="/signup" class="tap" style="color:var(--green);font-weight:600">Create account</a>
+    New here? <a href="/signup" class="tap" style="color:var(--ink);font-weight:600">Create account</a>
   </p>
   <p class="hint" style="text-align:center;font-size:11px;margin-top:12px;line-height:1.5">No app needed for friends — they pay by DuitNow QR</p>
 </div>
