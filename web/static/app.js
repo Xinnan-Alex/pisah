@@ -1,4 +1,4 @@
-const avatarColors = ['#18A07A', '#7C5CFF', '#E8A02D', '#F25C3B'];
+const avatarColors = ['#0F172A', '#334155', '#475569', '#1E293B'];
 
 // Mirrors the share package — integer sen, round half-up per division.
 function roundDiv(a, b) {
