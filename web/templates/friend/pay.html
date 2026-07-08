@@ -3,23 +3,23 @@
   <div class="muted" style="font-size:13px">Pay {{.Share.OwnerName}}</div>
   <h1 class="display" style="font-size:31px;margin-top:2px">{{rm .Share.OwedSen}}</h1>
   {{if .Share.AutoFillAmount}}
-  <div style="display:inline-block;margin-top:12px;font:600 12px 'JetBrains Mono';color:var(--orange);background:var(--peach);padding:8px 14px;border-radius:999px">Transfer exactly {{rm .Share.OwedSen}}</div>
+  <div style="display:inline-block;margin-top:12px;font:600 12px var(--font);color:var(--ink);background:var(--line);padding:8px 14px;border-radius:999px">Transfer exactly {{rm .Share.OwedSen}}</div>
   {{end}}
 </header>
 <div class="pad" style="margin-top:16px">
-  <div style="background:var(--paper);border:1px solid #EFE6D8;border-radius:22px;padding:20px;text-align:center">
+  <div style="background:var(--paper);border:1px solid var(--border);border-radius:22px;padding:20px;text-align:center">
     <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:14px">
-      <div aria-hidden="true" style="width:9px;height:9px;border-radius:50%;background:var(--orange)"></div>
-      <div style="font:800 13px 'JetBrains Mono';letter-spacing:.04em">DuitNow QR</div>
+      <div aria-hidden="true" style="width:9px;height:9px;border-radius:50%;background:var(--ink)"></div>
+      <div style="font:800 13px var(--font);letter-spacing:.04em">DuitNow QR</div>
     </div>
     <div style="background:#fff;border-radius:16px;padding:16px;display:inline-flex;box-shadow:0 6px 16px rgba(34,27,20,.08)">
       {{if hasQR .Share.OwnerQRURL}}
       <img src="/r/{{.Slug}}/qr-image" alt="DuitNow QR for {{.Share.OwnerName}}" style="width:220px;height:220px;max-width:60vw;object-fit:contain;border-radius:12px">
       {{else}}
-      <div class="muted" style="width:220px;height:220px;max-width:60vw;border-radius:12px;background:var(--cream);display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;padding:20px">{{.Share.OwnerName}} hasn't added a DuitNow QR yet</div>
+      <div class="muted" style="width:220px;height:220px;max-width:60vw;border-radius:12px;background:var(--canvas);display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;padding:20px">{{.Share.OwnerName}} hasn't added a DuitNow QR yet</div>
       {{end}}
     </div>
-    <div style="font:700 13px 'JetBrains Mono';margin-top:14px">{{upper .Share.OwnerName}}</div>
+    <div style="font:700 13px var(--font);margin-top:14px">{{upper .Share.OwnerName}}</div>
     <div class="muted" style="font-size:11px;margin-top:2px">Scan with any bank or e-wallet app</div>
   </div>
 </div>

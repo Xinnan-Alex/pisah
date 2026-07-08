@@ -1,15 +1,15 @@
 {{define "friend/landing.html"}}
-<header style="padding:48px 28px 24px;text-align:center;background:linear-gradient(180deg,var(--peach),transparent)">
-  <div aria-hidden="true" style="width:52px;height:52px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font:700 19px 'JetBrains Mono';margin:0 auto 14px">{{initial .Split.OwnerName}}</div>
+<header style="padding:48px 28px 24px;text-align:center;background:linear-gradient(180deg,var(--line),transparent)">
+  <div aria-hidden="true" style="width:52px;height:52px;border-radius:50%;background:var(--cta);color:var(--cta-text);display:flex;align-items:center;justify-content:center;font:700 19px var(--font);margin:0 auto 14px">{{initial .Split.OwnerName}}</div>
   <h1 class="display" style="font-size:24px;line-height:1.15">{{.Split.OwnerName}} invited you<br>to split the bill</h1>
   <div class="card" style="margin-top:18px;text-align:left">
-    <div style="font:700 16px 'JetBrains Mono'">{{.Split.Merchant}}</div>
+    <div style="font:700 16px var(--font)">{{.Split.Merchant}}</div>
     <div class="muted" style="margin-top:6px;font-size:12px">{{.ItemCount}} items · Total {{rm .Split.TotalSen}}</div>
   </div>
 </header>
 <div class="pad" style="padding-bottom:calc(28px + env(safe-area-inset-bottom))">
   <form method="post" action="/r/{{.Slug}}/join">
-    <label for="name" style="display:block;font:600 13px 'JetBrains Mono';margin-bottom:8px">What's your name?</label>
+    <label for="name" style="display:block;font:600 13px var(--font);margin-bottom:8px">What's your name?</label>
     <input id="name" name="name" placeholder="e.g. Sara" value="{{.Name}}" autocomplete="given-name" required>
     <button type="submit" class="btn" style="margin-top:14px">Join the split →</button>
   </form>
