@@ -630,8 +630,8 @@ input:focus-visible, textarea:focus-visible {
 .review-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .review-item-low { border-left: 3px solid var(--amber); padding-left: 8px; margin-left: -8px; }
 .review-warnings {
-  background: #FFF8E8;
-  border: 1px solid #F0D9A8;
+  background: var(--info-bg);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px 14px;
   margin-bottom: 12px;
@@ -705,18 +705,18 @@ input:focus-visible, textarea:focus-visible {
 .avatar { width: 36px; height: 36px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font: 700 14px var(--font); flex: none; }
 .badge { font: 700 10px var(--font); padding: 4px 10px; border-radius: 999px; }
 .badge-paid { background: var(--line); color: var(--slate); }
-.badge-pending { background: #FBEFD9; color: #B07A14; }
+.badge-pending { background: var(--line); color: var(--slate); }
 
 .preview-card {
-  border: 1.5px dashed #F0C89A;
-  background: #FFF6EC;
+  border: 1.5px dashed var(--border);
+  background: var(--canvas);
   border-radius: 18px;
   padding: 16px;
   display: flex;
   align-items: center;
   gap: 12px;
   text-decoration: none;
-  color: inherit;
+  color: var(--ink);
 }
 
 .scan-line {
