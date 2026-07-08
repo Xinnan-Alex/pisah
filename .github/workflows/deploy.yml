@@ -3,8 +3,13 @@
 # One-time setup:
 #   1. terraform apply  →  note output github_actions_role_arn
 #   2. Set AWS_ROLE_ARN below (or add a repo variable with the same name)
+#   3. Repo secrets for Supabase migrations (Settings → Secrets → Actions):
+#        SUPABASE_ACCESS_TOKEN  — https://supabase.com/dashboard/account/tokens
+#        SUPABASE_PROJECT_ID    — project ref from dashboard URL
+#        SUPABASE_DB_PASSWORD   — database password for that project
 #
 # IAM role trust is scoped to repo:ref:refs/heads/main — merge to main to deploy.
+# Pending supabase/migrations are applied before the new image rolls out.
 
 name: Deploy
 
@@ -16,6 +21,7 @@ on:
       - "go.mod"
       - "go.sum"
       - "web/**"
+      - "supabase/migrations/**"
       - "Dockerfile.release"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
@@ -34,8 +40,21 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Apply Supabase migrations
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_ID"
+          supabase db push
 
       - uses: actions/setup-go@v5
         with:
