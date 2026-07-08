@@ -21,3 +21,6 @@ tfplan
 
 # macos
 .DS_Store
+
+# local brainstorm companion sessions
+.superpowers/
