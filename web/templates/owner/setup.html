@@ -1,0 +1,73 @@
+{{define "owner/setup.html"}}
+<div class="pad" style="flex:1;display:flex;flex-direction:column;padding-top:24px;padding-bottom:32px"
+  x-data="qrCropper({hasExisting: {{if hasQR .Profile.OwnerQRURL}}true{{else}}false{{end}}})">
+  <h1 class="display" style="font-size:28px;line-height:1.15">Welcome to Pisah</h1>
+  <p class="muted" style="font-size:14px;margin-top:8px;line-height:1.45">Tell friends who you are and how to pay you — then start splitting.</p>
+
+  {{if .Error}}
+  <div class="setup-banner card" role="alert" style="margin-top:16px">
+    <p style="margin:0;font-size:13px">{{.Error}}</p>
+  </div>
+  {{end}}
+
+  <form method="post" action="/setup" enctype="multipart/form-data" style="margin-top:20px;flex:1;display:flex;flex-direction:column" @submit="onSubmit($event)">
+    <div class="card">
+      <label class="hint" style="font-size:11px;display:block;margin-bottom:6px">Your name</label>
+      <input type="text" name="display_name" value="{{.Name}}" placeholder="e.g. John Doe" required autofocus style="width:100%;padding:12px 14px;font-size:15px">
+      <p class="muted" style="font-size:12px;margin:8px 0 0;line-height:1.4">Shown to friends on the split link.</p>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <label class="hint" style="font-size:11px;display:block;margin-bottom:6px">DuitNow QR</label>
+      <p class="muted" style="font-size:13px;margin:0 0 12px;line-height:1.45">Friends scan this to pay you back. Upload once from your banking app.</p>
+
+      <template x-if="!previewURL && hasExisting">
+        <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">
+          <img src="/settings/qr-image" alt="Your DuitNow QR" style="width:88px;height:88px;object-fit:contain;border-radius:12px;background:var(--paper);border:1px solid #EFE6D8">
+          <span class="muted" style="font-size:12px;line-height:1.4">Current QR on file. Upload a new image to replace it.</span>
+        </div>
+      </template>
+
+      <div class="qr-crop" x-show="previewURL" x-cloak>
+        <div class="qr-crop-stage"
+          @pointerdown.prevent="startDrag($event)"
+          @pointermove.prevent="onDrag($event)"
+          @pointerup.prevent="endDrag()"
+          @pointercancel.prevent="endDrag()"
+          @wheel.prevent="onWheel($event)">
+          <img :src="previewURL" alt="QR preview" class="qr-crop-img"
+            :style="imgStyle"
+            @load="onImageLoad($event)"
+            draggable="false">
+          <div class="qr-crop-frame" aria-hidden="true"></div>
+        </div>
+        <p class="muted" style="font-size:12px;margin:10px 0 0;line-height:1.4;text-align:center">Drag to move · pinch or scroll to zoom so the QR fills the square</p>
+        <div class="qr-crop-zoom">
+          <span class="hint" style="font-size:11px">Zoom</span>
+          <input type="range" min="1" max="4" step="0.01" x-model.number="scale" @input="clampPan()">
+        </div>
+      </div>
+
+      <label class="file-upload-zone tap" :class="fileName && 'has-file'" style="margin-top:12px">
+        <input type="file" name="qr" accept="image/*" class="file-upload-input"
+          x-ref="fileInput"
+          {{if not (hasQR .Profile.OwnerQRURL)}}required{{end}}
+          @change="onFileChange($event)">
+        <span class="file-upload-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 17h7M17.5 13.5v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="btn btn-sm btn-outline file-upload-btn" x-text="fileName ? 'Change QR image' : (hasExisting ? 'Replace QR image' : 'Choose QR image')"></span>
+        <span class="file-upload-hint" x-text="fileName || 'PNG or JPG from your banking app'"></span>
+      </label>
+    </div>
+
+    <div style="flex:1"></div>
+    <button type="submit" class="btn" style="margin-top:24px" :disabled="submitting" x-text="submitting ? 'Saving…' : 'Continue →'"></button>
+  </form>
+</div>
+{{end}}

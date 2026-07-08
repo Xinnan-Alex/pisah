@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/golang-jwt/jwt/v5"
 )
 
 type capturePageData struct {
@@ -23,10 +21,10 @@ type capturePageData struct {
 	ActiveCount       int
 	Profile           OwnerProfile
 	HasQR             bool
+	HasName           bool
 	ShowOnboarding    bool
 	SetupRequired     bool
 	ScanError         string
-	SignedIn          bool
 }
 
 type reviewPageData struct {
@@ -43,7 +41,6 @@ type reviewPageData struct {
 	CapturedAt  string       `json:"-"`
 	ManualEntry bool         `json:"manualEntry,omitempty"`
 	RescanError string       `json:"-"`
-	SignedIn    bool         `json:"signedIn,omitempty"`
 }
 
 type sharePageData struct {
@@ -52,7 +49,12 @@ type sharePageData struct {
 	ShareDisplayURL string
 	Merchant        string
 	TotalSen        int64
-	SignedIn        bool
+}
+
+type setupPageData struct {
+	Profile OwnerProfile
+	Error   string
+	Name    string
 }
 
 type trackPageData struct {
@@ -113,170 +115,31 @@ func (s *Server) handleWebRoot(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/capture", http.StatusSeeOther)
 }
 
-func (s *Server) handleWebSignInGet(w http.ResponseWriter, r *http.Request) {
-	if _, _, ok := s.ownerFromRequest(w, r); ok {
-		http.Redirect(w, r, "/capture", http.StatusSeeOther)
-		return
-	}
-	data := map[string]any{
-		"Error":     r.URL.Query().Get("error"),
-		"Info":      r.URL.Query().Get("info"),
-		"Email":     r.URL.Query().Get("email"),
-		"GoogleURL": "",
-	}
-	if s.cfg.SupabaseURL != "" && s.cfg.SupabasePublishableKey != "" {
-		data["GoogleURL"] = s.webGoogleOAuthURL(r)
-	}
-	s.render(w, r, "owner/signin.html", "Sign in · Pisah", data)
-}
-
-func (s *Server) handleWebSignInPost(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/signin?error=Invalid+form", http.StatusSeeOther)
-		return
-	}
-	email := strings.TrimSpace(r.FormValue("email"))
-	password := r.FormValue("password")
-	if email == "" || password == "" {
-		http.Redirect(w, r, "/signin?error=Email+and+password+required&email="+url.QueryEscape(email), http.StatusSeeOther)
-		return
-	}
-	if !s.authConfigured() {
-		http.Redirect(w, r, "/signin?error=Auth+not+configured", http.StatusSeeOther)
-		return
-	}
-	status, data, err := s.supabaseSignIn(r.Context(), email, password)
-	if err != nil {
-		http.Redirect(w, r, "/signin?error=Auth+service+unreachable&email="+url.QueryEscape(email), http.StatusSeeOther)
-		return
-	}
-	if status >= 400 {
-		http.Redirect(w, r, "/signin?error=Invalid+email+or+password&email="+url.QueryEscape(email), http.StatusSeeOther)
-		return
-	}
-	tok := parseSupabaseSession(data)
-	if tok.AccessToken == "" {
-		http.Redirect(w, r, "/signin?error=Auth+response+invalid", http.StatusSeeOther)
-		return
-	}
-	s.setSessionCookies(w, tok.AccessToken, tok.RefreshToken)
+func (s *Server) handleAuthGone(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/capture", http.StatusSeeOther)
 }
 
-func (s *Server) handleWebSignUpGet(w http.ResponseWriter, r *http.Request) {
-	if _, _, ok := s.ownerFromRequest(w, r); ok {
-		http.Redirect(w, r, "/capture", http.StatusSeeOther)
-		return
-	}
-	data := map[string]any{
-		"Error": r.URL.Query().Get("error"),
-		"Email": r.URL.Query().Get("email"),
-	}
-	s.render(w, r, "owner/signup.html", "Sign up · Pisah", data)
-}
-
-func (s *Server) handleWebSignUpPost(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/signup?error=Invalid+form", http.StatusSeeOther)
-		return
-	}
-	email := strings.TrimSpace(r.FormValue("email"))
-	password := r.FormValue("password")
-	confirm := r.FormValue("password_confirm")
-	if email == "" || password == "" {
-		http.Redirect(w, r, "/signup?error=Email+and+password+required&email="+url.QueryEscape(email), http.StatusSeeOther)
-		return
-	}
-	if password != confirm {
-		http.Redirect(w, r, "/signup?error=Passwords+do+not+match&email="+url.QueryEscape(email), http.StatusSeeOther)
-		return
-	}
-	if !s.authConfigured() {
-		http.Redirect(w, r, "/signup?error=Auth+not+configured", http.StatusSeeOther)
-		return
-	}
-	redirectTo := strings.TrimRight(s.cfg.PublicBaseURL, "/") + "/auth/callback"
-	status, data, err := s.supabaseSignUp(r.Context(), email, password, redirectTo)
+func (s *Server) loadCapturePageData(ctx context.Context, ownerID string, setupRequired bool) (capturePageData, error) {
+	summaries, err := s.store.ListOwnerSplits(ctx, ownerID)
 	if err != nil {
-		http.Redirect(w, r, "/signup?error=Auth+service+unreachable&email="+url.QueryEscape(email), http.StatusSeeOther)
-		return
+		return capturePageData{}, err
 	}
-	if status >= 400 {
-		msg := supabaseErrorMessage(data)
-		if msg == "" {
-			msg = "Could not create account"
-		}
-		http.Redirect(w, r, "/signup?error="+url.QueryEscape(msg)+"&email="+url.QueryEscape(email), http.StatusSeeOther)
-		return
-	}
-	tok := parseSupabaseSession(data)
-	if tok.AccessToken != "" {
-		s.setSessionCookies(w, tok.AccessToken, tok.RefreshToken)
-		http.Redirect(w, r, "/capture", http.StatusSeeOther)
-		return
-	}
-	info := "Check your email to confirm your account, then sign in"
-	http.Redirect(w, r, "/signin?info="+url.QueryEscape(info)+"&email="+url.QueryEscape(email), http.StatusSeeOther)
-}
-
-func (s *Server) handleWebSignOut(w http.ResponseWriter, r *http.Request) {
-	s.clearSessionCookies(w)
-	http.Redirect(w, r, "/signin", http.StatusSeeOther)
-}
-
-func (s *Server) handleWebAuthCallback(w http.ResponseWriter, r *http.Request) {
-	if err := s.templates.ExecuteTemplate(w, "auth/callback.html", nil); err != nil {
-		http.Error(w, "template error", http.StatusInternalServerError)
-	}
-}
-
-func (s *Server) handleWebAuthSession(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.AccessToken == "" {
-		writeErr(w, http.StatusBadRequest, "access_token required")
-		return
-	}
-	if _, _, err := s.verifyAccessToken(body.AccessToken); err != nil {
-		writeErr(w, http.StatusUnauthorized, "invalid token")
-		return
-	}
-	s.setSessionCookies(w, body.AccessToken, body.RefreshToken)
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) loadCapturePageData(ctx context.Context, ownerID string, setupRequired bool, signedIn bool) (capturePageData, error) {
-	var summaries []SplitSummary
 	var outstanding, collected int64
 	active := 0
-	prof := OwnerProfile{AutoFillAmount: true}
-	hasQR := false
-	showOnboarding := false
-
-	if signedIn {
-		var err error
-		summaries, err = s.store.ListOwnerSplits(ctx, ownerID)
-		if err != nil {
-			return capturePageData{}, err
+	for _, sum := range summaries {
+		collected += sum.CollectedSen
+		rem := sum.Split.TotalSen - sum.CollectedSen
+		if rem > 0 {
+			outstanding += rem
+			active++
 		}
-		for _, sum := range summaries {
-			collected += sum.CollectedSen
-			rem := sum.Split.TotalSen - sum.CollectedSen
-			if rem > 0 {
-				outstanding += rem
-				active++
-			}
-		}
-		prof, err = s.store.GetOwnerProfile(ctx, ownerID)
-		if err != nil {
-			return capturePageData{}, err
-		}
-		hasQR = ownerProfileHasQR(prof)
-		showOnboarding = prof.OnboardingSeenAt == nil
 	}
-
+	prof, err := s.store.GetOwnerProfile(ctx, ownerID)
+	if err != nil {
+		return capturePageData{}, err
+	}
+	hasQR := ownerProfileHasQR(prof)
+	hasName := strings.TrimSpace(prof.DisplayName) != ""
 	return capturePageData{
 		Splits:            summaries,
 		OutstandingSen:    outstanding,
@@ -284,15 +147,15 @@ func (s *Server) loadCapturePageData(ctx context.Context, ownerID string, setupR
 		ActiveCount:       active,
 		Profile:           prof,
 		HasQR:             hasQR,
-		ShowOnboarding:    showOnboarding,
-		SetupRequired:     setupRequired && signedIn,
-		SignedIn:          signedIn,
+		HasName:           hasName,
+		ShowOnboarding:    hasQR && hasName && prof.OnboardingSeenAt == nil,
+		SetupRequired:     setupRequired,
 	}, nil
 }
 
 func (s *Server) renderCapture(w http.ResponseWriter, r *http.Request, setupRequired bool) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
-	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired, signedInFromRequest(r))
+	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired)
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load capture page", err)
 		return
@@ -300,30 +163,93 @@ func (s *Server) renderCapture(w http.ResponseWriter, r *http.Request, setupRequ
 	s.render(w, r, "owner/capture.html", "Pisah", data)
 }
 
-func (s *Server) ownerQRRequired(w http.ResponseWriter, r *http.Request, ownerID string) bool {
-	if !signedInFromRequest(r) {
-		return true
-	}
+func (s *Server) ownerProfileRequired(w http.ResponseWriter, r *http.Request, ownerID string) bool {
 	prof, err := s.store.GetOwnerProfile(r.Context(), ownerID)
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load profile", err)
 		return false
 	}
-	if ownerProfileHasQR(prof) {
+	if ownerProfileReady(prof) {
 		return true
 	}
-	if r.Header.Get("HX-Request") != "" {
-		s.renderCapture(w, r, true)
-		return false
-	}
-	http.Redirect(w, r, "/capture?setup=qr", http.StatusSeeOther)
+	http.Redirect(w, r, "/setup", http.StatusSeeOther)
 	return false
+}
+
+func (s *Server) handleWebSetupGet(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	prof, err := s.store.GetOwnerProfile(r.Context(), ownerID)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load profile", err)
+		return
+	}
+	if ownerProfileReady(prof) && r.URL.Query().Get("edit") == "" {
+		http.Redirect(w, r, "/capture", http.StatusSeeOther)
+		return
+	}
+	s.render(w, r, "owner/setup.html", "Get started · Pisah", setupPageData{
+		Profile: prof,
+		Name:    prof.DisplayName,
+		Error:   r.URL.Query().Get("error"),
+	})
+}
+
+func (s *Server) handleWebSetupPost(w http.ResponseWriter, r *http.Request) {
+	ownerID := r.Context().Value(ctxOwnerID).(string)
+	if err := r.ParseMultipartForm(maxReceiptBytes); err != nil {
+		http.Redirect(w, r, "/setup?error="+url.QueryEscape("Invalid form"), http.StatusSeeOther)
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("display_name"))
+	if name == "" {
+		http.Redirect(w, r, "/setup?error="+url.QueryEscape("Name is required"), http.StatusSeeOther)
+		return
+	}
+
+	prof, err := s.store.GetOwnerProfile(r.Context(), ownerID)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load profile", err)
+		return
+	}
+	qrURL := ""
+	if file, _, err := r.FormFile("qr"); err == nil {
+		defer file.Close()
+		img, err := io.ReadAll(io.LimitReader(file, maxReceiptBytes))
+		if err == nil && len(img) > 0 {
+			uploaded, err := uploadDuitNowQR(r.Context(), s.cfg, ownerID, img)
+			if err != nil {
+				slog.ErrorContext(r.Context(), "setup qr upload failed", "error", err)
+				http.Redirect(w, r, "/setup?error="+url.QueryEscape("Could not upload QR — try again"), http.StatusSeeOther)
+				return
+			}
+			qrURL = uploaded
+		}
+	}
+	if qrURL == "" && !ownerProfileHasQR(prof) {
+		http.Redirect(w, r, "/setup?error="+url.QueryEscape("DuitNow QR is required"), http.StatusSeeOther)
+		return
+	}
+
+	if _, err := s.store.SetOwnerProfile(r.Context(), ownerID, name, qrURL); err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not save profile", err)
+		return
+	}
+	http.Redirect(w, r, "/capture", http.StatusSeeOther)
 }
 
 func (s *Server) handleWebCapture(w http.ResponseWriter, r *http.Request) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
+	prof, err := s.store.GetOwnerProfile(r.Context(), ownerID)
+	if err != nil {
+		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load profile", err)
+		return
+	}
+	if !ownerProfileReady(prof) {
+		http.Redirect(w, r, "/setup", http.StatusSeeOther)
+		return
+	}
 	setupRequired := r.URL.Query().Get("setup") == "qr"
-	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired, signedInFromRequest(r))
+	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired)
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load splits", err)
 		return
@@ -345,7 +271,7 @@ func (s *Server) handleWebOnboardingSeen(w http.ResponseWriter, r *http.Request)
 
 func (s *Server) handleWebScan(w http.ResponseWriter, r *http.Request) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
-	if !s.ownerQRRequired(w, r, ownerID) {
+	if !s.ownerProfileRequired(w, r, ownerID) {
 		return
 	}
 	if err := r.ParseMultipartForm(maxReceiptBytes); err != nil {
@@ -379,22 +305,15 @@ func (s *Server) handleWebScan(w http.ResponseWriter, r *http.Request) {
 		"warnings", len(result.Warnings),
 	)...)
 	data := s.reviewDataFromScan(result, true)
-	data.SignedIn = signedInFromRequest(r)
 	s.render(w, r, "owner/review.html", "Review receipt · Pisah", data)
 }
 
 func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
-	signedIn := signedInFromRequest(r)
-	if !s.ownerQRRequired(w, r, ownerID) {
+	if !s.ownerProfileRequired(w, r, ownerID) {
 		return
 	}
-	if signedIn {
-		if err := r.ParseForm(); err != nil {
-			http.Redirect(w, r, "/capture", http.StatusSeeOther)
-			return
-		}
-	} else if err := r.ParseMultipartForm(maxReceiptBytes); err != nil {
+	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/capture", http.StatusSeeOther)
 		return
 	}
@@ -445,12 +364,11 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ownerName := "You"
-	if signedIn {
-		if claims, ok := r.Context().Value(ctxOwnerClaims).(jwt.MapClaims); ok {
-			ownerName = ownerDisplayName(claims, ownerName)
+	prof, err := s.store.GetOwnerProfile(r.Context(), ownerID)
+	if err == nil {
+		if n := strings.TrimSpace(prof.DisplayName); n != "" {
+			ownerName = n
 		}
-	} else if n := strings.TrimSpace(r.FormValue("owner_name")); n != "" {
-		ownerName = n
 	}
 
 	now := time.Now()
@@ -463,6 +381,7 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 		ServiceSen:  serviceSen,
 		RoundingSen: roundingSen,
 		TotalSen:    totalSen,
+		OwnerQRURL:  prof.OwnerQRURL,
 	}
 	for _, it := range items {
 		included := it.IncludedInSplit
@@ -474,24 +393,10 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 			IncludedInSplit *bool  `json:"includedInSplit"`
 		}{Name: it.Name, Qty: it.Qty, UnitPriceSen: it.UnitPriceSen, LineTotalSen: it.LineTotalSen, IncludedInSplit: &included})
 	}
-	if signedIn {
-		if prof, err := s.store.GetOwnerProfile(r.Context(), ownerID); err == nil {
-			in.OwnerQRURL = prof.OwnerQRURL
-		}
-	} else if file, _, err := r.FormFile("owner_qr"); err == nil {
-		defer file.Close()
-		img, err := io.ReadAll(io.LimitReader(file, maxReceiptBytes))
-		if err == nil && len(img) > 0 {
-			if qrURL, err := uploadDuitNowQR(r.Context(), s.cfg, ownerID, img); err == nil {
-				in.OwnerQRURL = &qrURL
-			}
-		}
-	}
 
 	scanID := strings.TrimSpace(r.FormValue("scan_id"))
 
 	var split Split
-	var err error
 	for attempt := 0; attempt < 5; attempt++ {
 		split, err = s.store.CreateSplit(r.Context(), ownerID, newSlug(), in)
 		if err == nil {
@@ -509,7 +414,6 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 		ShareDisplayURL: s.shareDisplayURL(split.Slug),
 		Merchant:        split.Merchant,
 		TotalSen:        split.TotalSen,
-		SignedIn:        signedIn,
 	}
 	s.render(w, r, "owner/share.html", "Share split · Pisah", data)
 }
@@ -650,9 +554,19 @@ func (s *Server) handleWebSettingsPut(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid form")
 		return
 	}
-	autoFill := r.FormValue("autoFillAmount") == "true"
-	if _, err := s.store.SetAutoFillAmount(r.Context(), ownerID, autoFill); err != nil {
-		slog.ErrorContext(r.Context(), "could not save settings", "error", err, "owner_id", ownerID)
+	if name := strings.TrimSpace(r.FormValue("display_name")); name != "" {
+		if _, err := s.store.SetOwnerDisplayName(r.Context(), ownerID, name); err != nil {
+			slog.ErrorContext(r.Context(), "could not save display name", "error", err, "owner_id", ownerID)
+		}
+	} else {
+		autoFill := r.FormValue("autoFillAmount") == "true"
+		if _, err := s.store.SetAutoFillAmount(r.Context(), ownerID, autoFill); err != nil {
+			slog.ErrorContext(r.Context(), "could not save settings", "error", err, "owner_id", ownerID)
+		}
+	}
+	if r.Header.Get("HX-Request") != "" {
+		s.renderSettings(w, r, ownerID)
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

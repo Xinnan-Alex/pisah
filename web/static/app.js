@@ -1,7 +1,4 @@
 const avatarColors = ['#18A07A', '#7C5CFF', '#E8A02D', '#F25C3B'];
-const LOCAL_SPLITS_KEY = 'pisah_splits';
-const ONBOARDING_SEEN_KEY = 'pisah_onboarding_seen';
-const ANON_DISCLAIMER_KEY = 'pisah_anon_disclaimer_dismissed';
 
 // Mirrors the share package — integer sen, round half-up per division.
 function roundDiv(a, b) {
@@ -24,119 +21,8 @@ function submitReceipt(input) {
   input.form.submit();
 }
 
-function isCaptureSignedIn() {
-  const page = document.querySelector('.capture-page');
-  return page && page.dataset.signedIn === '1';
-}
-
-function readLocalSplits() {
-  try {
-    const raw = localStorage.getItem(LOCAL_SPLITS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    return [];
-  }
-}
-
-function writeLocalSplits(splits) {
-  localStorage.setItem(LOCAL_SPLITS_KEY, JSON.stringify(splits));
-}
-
-function saveAnonSplit(entry) {
-  const splits = readLocalSplits().filter(s => s.slug !== entry.slug);
-  splits.unshift(entry);
-  writeLocalSplits(splits.slice(0, 50));
-}
-
-function removeLocalSplit(slug) {
-  writeLocalSplits(readLocalSplits().filter(s => s.slug !== slug));
-}
-
-function formatSplitDate(iso) {
-  if (!iso) return 'Just now';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-  } catch (e) {
-    return 'Just now';
-  }
-}
-
-function renderLocalSplits() {
-  const page = document.querySelector('.capture-page');
-  const section = document.getElementById('capture-splits');
-  const list = document.getElementById('local-splits-list');
-  if (!page || page.dataset.signedIn === '1' || !section || !list) return;
-
-  const splits = readLocalSplits();
-  if (splits.length === 0) {
-    section.hidden = true;
-    list.innerHTML = '';
-    return;
-  }
-
-  section.hidden = false;
-  list.innerHTML = splits.map(s => {
-    const merchant = (s.merchant || 'Split').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const slug = (s.slug || '').replace(/"/g, '&quot;');
-    const shareUrl = (s.shareUrl || '').replace(/"/g, '&quot;');
-    const total = formatRM(parseInt(s.totalSen, 10) || 0);
-    const date = formatSplitDate(s.createdAt);
-    return `<a href="/splits/${slug}/track" class="split-row tap">
-      <div class="split-row-head">
-        <div>
-          <div class="split-row-title">${merchant}</div>
-          <div class="split-row-sub">${date} · ${total}</div>
-        </div>
-        <button type="button" class="tap link local-split-remove" style="font-size:12px;padding:4px 8px" data-slug="${slug}" data-share-url="${shareUrl}">Remove</button>
-      </div>
-    </a>`;
-  }).join('');
-
-  list.querySelectorAll('.local-split-remove').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!confirm('Remove this split from your device list? The share link will still work.')) return;
-      removeLocalSplit(btn.dataset.slug);
-      renderLocalSplits();
-    });
-  });
-}
-
-function dismissAnonDisclaimer() {
-  localStorage.setItem(ANON_DISCLAIMER_KEY, '1');
-  const el = document.getElementById('anon-disclaimer');
-  if (el) el.hidden = true;
-}
-
-function initAnonDisclaimer() {
-  const el = document.getElementById('anon-disclaimer');
-  if (!el) return;
-  if (localStorage.getItem(ANON_DISCLAIMER_KEY) === '1') {
-    el.hidden = true;
-  }
-}
-
-function initAnonSharePage() {
-  const page = document.getElementById('anon-share-page');
-  if (!page) return;
-  saveAnonSplit({
-    slug: page.dataset.slug,
-    merchant: page.dataset.merchant || 'Split',
-    shareUrl: page.dataset.shareUrl,
-    totalSen: parseInt(page.dataset.totalSen, 10) || 0,
-    createdAt: new Date().toISOString(),
-  });
-}
-
 function markOnboardingSeen() {
-  if (isCaptureSignedIn()) {
-    fetch('/onboarding/seen', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
-  } else {
-    localStorage.setItem(ONBOARDING_SEEN_KEY, '1');
-  }
+  fetch('/onboarding/seen', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
 }
 
 function openOnboardingModal(autoMarkSeenOnClose) {
@@ -161,13 +47,7 @@ function closeOnboardingModal(explicitMarkSeen) {
 
 function initCaptureOnboarding() {
   const page = document.querySelector('.capture-page');
-  if (!page) return;
-  if (page.dataset.signedIn === '1') {
-    if (page.dataset.showOnboarding !== '1') return;
-    openOnboardingModal(true);
-    return;
-  }
-  if (localStorage.getItem(ONBOARDING_SEEN_KEY) === '1') return;
+  if (!page || page.dataset.showOnboarding !== '1') return;
   openOnboardingModal(true);
 }
 
@@ -183,15 +63,10 @@ function initCaptureScanError() {
 document.addEventListener('DOMContentLoaded', () => {
   initCaptureOnboarding();
   initCaptureScanError();
-  initAnonDisclaimer();
-  renderLocalSplits();
-  initAnonSharePage();
 });
 document.body.addEventListener('htmx:afterSettle', () => {
   initCaptureOnboarding();
   initCaptureScanError();
-  initAnonDisclaimer();
-  renderLocalSplits();
 });
 
 function showScanOverlay() {
@@ -254,6 +129,148 @@ function warningText(code) {
 }
 
 function registerAlpineComponents(Alpine) {
+  Alpine.data('qrCropper', (opts = {}) => ({
+    hasExisting: !!opts.hasExisting,
+    previewURL: '',
+    fileName: '',
+    naturalW: 0,
+    naturalH: 0,
+    baseScale: 1,
+    scale: 1,
+    panX: 0,
+    panY: 0,
+    dragging: false,
+    lastX: 0,
+    lastY: 0,
+    submitting: false,
+    get imgStyle() {
+      const s = this.baseScale * this.scale;
+      return {
+        width: this.naturalW ? (this.naturalW + 'px') : 'auto',
+        height: this.naturalH ? (this.naturalH + 'px') : 'auto',
+        transform: `translate(calc(-50% + ${this.panX}px), calc(-50% + ${this.panY}px)) scale(${s})`,
+      };
+    },
+    onFileChange(e) {
+      const file = e.target.files?.[0];
+      if (this.previewURL) URL.revokeObjectURL(this.previewURL);
+      this.previewURL = '';
+      this.fileName = '';
+      this.scale = 1;
+      this.panX = 0;
+      this.panY = 0;
+      if (!file) return;
+      this.fileName = file.name;
+      this.previewURL = URL.createObjectURL(file);
+    },
+    onImageLoad(e) {
+      this.naturalW = e.target.naturalWidth;
+      this.naturalH = e.target.naturalHeight;
+      const stage = e.target.parentElement;
+      const sw = stage.clientWidth;
+      const sh = stage.clientHeight;
+      // Cover the full stage so crop frame (inner 76%) can still be filled via zoom.
+      this.baseScale = Math.max(sw / this.naturalW, sh / this.naturalH);
+      this.scale = 1;
+      this.panX = 0;
+      this.panY = 0;
+      this.clampPan();
+    },
+    stageSize() {
+      const stage = this.$el.querySelector('.qr-crop-stage');
+      if (!stage) return { w: 280, h: 280 };
+      return { w: stage.clientWidth, h: stage.clientHeight };
+    },
+    clampPan() {
+      if (!this.naturalW || !this.naturalH) return;
+      const { w, h } = this.stageSize();
+      const s = this.baseScale * this.scale;
+      const dispW = this.naturalW * s;
+      const dispH = this.naturalH * s;
+      // Keep crop frame (inset 12%) covered with image.
+      const frameW = w * 0.76;
+      const frameH = h * 0.76;
+      const maxX = Math.max(0, (dispW - frameW) / 2);
+      const maxY = Math.max(0, (dispH - frameH) / 2);
+      this.panX = Math.min(maxX, Math.max(-maxX, this.panX));
+      this.panY = Math.min(maxY, Math.max(-maxY, this.panY));
+    },
+    startDrag(e) {
+      if (!this.previewURL) return;
+      this.dragging = true;
+      this.lastX = e.clientX;
+      this.lastY = e.clientY;
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    },
+    onDrag(e) {
+      if (!this.dragging) return;
+      this.panX += e.clientX - this.lastX;
+      this.panY += e.clientY - this.lastY;
+      this.lastX = e.clientX;
+      this.lastY = e.clientY;
+      this.clampPan();
+    },
+    endDrag() { this.dragging = false; },
+    onWheel(e) {
+      if (!this.previewURL) return;
+      const next = Math.min(4, Math.max(1, this.scale + (e.deltaY < 0 ? 0.08 : -0.08)));
+      this.scale = Math.round(next * 100) / 100;
+      this.clampPan();
+    },
+    async exportCroppedBlob() {
+      const { w, h } = this.stageSize();
+      const frame = 0.76;
+      const out = 768;
+      const canvas = document.createElement('canvas');
+      canvas.width = out;
+      canvas.height = out;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, out, out);
+
+      const s = this.baseScale * this.scale;
+      // Image center in stage coords
+      const imgCx = w / 2 + this.panX;
+      const imgCy = h / 2 + this.panY;
+      // Crop square in stage coords
+      const cropX = w * (1 - frame) / 2;
+      const cropY = h * (1 - frame) / 2;
+      const cropS = w * frame;
+
+      // Convert crop rect to image natural pixels
+      const srcX = (cropX - (imgCx - (this.naturalW * s) / 2)) / s;
+      const srcY = (cropY - (imgCy - (this.naturalH * s) / 2)) / s;
+      const srcS = cropS / s;
+
+      const img = this.$el.querySelector('.qr-crop-img');
+      ctx.drawImage(img, srcX, srcY, srcS, srcS, 0, 0, out, out);
+
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (!blob) reject(new Error('crop failed'));
+          else resolve(blob);
+        }, 'image/jpeg', 0.92);
+      });
+    },
+    async onSubmit(e) {
+      if (!this.previewURL) return; // keep existing QR file / optional when hasExisting
+      e.preventDefault();
+      if (this.submitting) return;
+      this.submitting = true;
+      try {
+        const blob = await this.exportCroppedBlob();
+        const dt = new DataTransfer();
+        dt.items.add(new File([blob], 'duitnow-qr.jpg', { type: 'image/jpeg' }));
+        this.$refs.fileInput.files = dt.files;
+        e.target.submit();
+      } catch (err) {
+        console.error(err);
+        this.submitting = false;
+        alert('Could not crop QR — try another photo');
+      }
+    },
+  }));
+
   Alpine.data('receiptReview', () => ({
     merchant: '',
     subtotalSen: 0,
@@ -263,7 +280,6 @@ function registerAlpineComponents(Alpine) {
     totalSen: 0,
     items: [],
     warnings: [],
-    ownerQrName: '',
     init() {
       const data = loadReceiptJSON();
       this.merchant = data.merchant || '';
@@ -304,10 +320,6 @@ function registerAlpineComponents(Alpine) {
       this.items.push({ name: '', qty: 1, unitPriceSen: 0, lineTotalSen: 0, includedInSplit: true });
     },
     removeItem(i) { this.items.splice(i, 1); },
-    onOwnerQrChange(e) {
-      const file = e.target.files?.[0];
-      this.ownerQrName = file ? file.name : '';
-    },
     syncLine(i) {
       const it = this.items[i];
       const qty = Math.max(1, parseInt(it.qty, 10) || 1);

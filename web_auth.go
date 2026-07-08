@@ -137,26 +137,7 @@ func (s *Server) ownerFromRequest(w http.ResponseWriter, r *http.Request) (strin
 	return ownerID, claims, true
 }
 
-func (s *Server) requireOwnerWeb(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ownerID, claims, ok := s.ownerFromRequest(w, r)
-		if !ok {
-			http.Redirect(w, r, "/signin", http.StatusSeeOther)
-			return
-		}
-		ctx := context.WithValue(r.Context(), ctxOwnerID, ownerID)
-		ctx = context.WithValue(ctx, ctxOwnerClaims, claims)
-		ctx = context.WithValue(ctx, ctxSignedIn, true)
-		next(w, r.WithContext(ctx))
-	}
-}
-
-func signedInFromRequest(r *http.Request) bool {
-	v, ok := r.Context().Value(ctxSignedIn).(bool)
-	return ok && v
-}
-
-func (s *Server) anonOwnerID(w http.ResponseWriter, r *http.Request) string {
+func (s *Server) deviceOwnerID(w http.ResponseWriter, r *http.Request) string {
 	if c, err := r.Cookie(cookieAnon); err == nil && c.Value != "" {
 		return c.Value
 	}
@@ -172,20 +153,27 @@ func (s *Server) anonOwnerID(w http.ResponseWriter, r *http.Request) string {
 	return id
 }
 
-func (s *Server) ownerOrAnonWeb(next http.HandlerFunc) http.HandlerFunc {
+// deviceWeb stamps a per-device owner id (pisah_anon cookie). Auth is optional/legacy.
+func (s *Server) deviceWeb(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if ownerID, claims, ok := s.ownerFromRequest(w, r); ok {
-			ctx := context.WithValue(r.Context(), ctxOwnerID, ownerID)
-			ctx = context.WithValue(ctx, ctxOwnerClaims, claims)
-			ctx = context.WithValue(ctx, ctxSignedIn, true)
-			next(w, r.WithContext(ctx))
-			return
-		}
-		ownerID := s.anonOwnerID(w, r)
+		ownerID := s.deviceOwnerID(w, r)
 		ctx := context.WithValue(r.Context(), ctxOwnerID, ownerID)
 		ctx = context.WithValue(ctx, ctxSignedIn, false)
 		next(w, r.WithContext(ctx))
 	}
+}
+
+// ownerOrAnonWeb is kept as an alias for compatibility with older call sites.
+func (s *Server) ownerOrAnonWeb(next http.HandlerFunc) http.HandlerFunc {
+	return s.deviceWeb(next)
+}
+
+func (s *Server) requireOwnerWeb(next http.HandlerFunc) http.HandlerFunc {
+	return s.deviceWeb(next)
+}
+
+func signedInFromRequest(r *http.Request) bool {
+	return false
 }
 
 func participantCookieName(slug string) string {

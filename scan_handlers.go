@@ -136,7 +136,7 @@ func (s *Server) serveScanImage(w http.ResponseWriter, r *http.Request, ownerID,
 
 func (s *Server) handleWebRescan(w http.ResponseWriter, r *http.Request) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
-	if !s.ownerQRRequired(w, r, ownerID) {
+	if !s.ownerProfileRequired(w, r, ownerID) {
 		return
 	}
 	scanID := r.PathValue("id")
@@ -159,19 +159,17 @@ func (s *Server) handleWebRescan(w http.ResponseWriter, r *http.Request) {
 		slog.ErrorContext(r.Context(), "rescan failed", s.scanLogAttrs("scan_id", scanID, "error", err)...)
 		data := s.reviewDataFromScan(ScanResult{ScanID: scanID, Receipt: rec, Warnings: warnings}, true)
 		data.RescanError = scanErrorMessage(err)
-		data.SignedIn = signedInFromRequest(r)
 		s.render(w, r, "owner/review.html", "Review receipt · Pisah", data)
 		return
 	}
 	data := s.reviewDataFromScan(ScanResult{ScanID: scanID, Receipt: rec, Warnings: warnings}, true)
-	data.SignedIn = signedInFromRequest(r)
 	s.render(w, r, "owner/review.html", "Review receipt · Pisah", data)
 	_ = session
 }
 
 func (s *Server) handleWebManualReview(w http.ResponseWriter, r *http.Request) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
-	if !s.ownerQRRequired(w, r, ownerID) {
+	if !s.ownerProfileRequired(w, r, ownerID) {
 		return
 	}
 	data := reviewPageData{
@@ -179,7 +177,6 @@ func (s *Server) handleWebManualReview(w http.ResponseWriter, r *http.Request) {
 		Items:       []ParsedItem{{Name: "", Qty: 1, UnitPriceSen: 0, LineTotalSen: 0}},
 		CapturedAt:  time.Now().Format("2 Jan · 3:04 PM"),
 		ManualEntry: true,
-		SignedIn:    signedInFromRequest(r),
 	}
 	s.render(w, r, "owner/review.html", "Enter receipt · Pisah", data)
 }
@@ -223,7 +220,7 @@ func scanErrorMessage(err error) string {
 
 func (s *Server) renderCaptureWithError(w http.ResponseWriter, r *http.Request, setupRequired bool, scanError string) {
 	ownerID := r.Context().Value(ctxOwnerID).(string)
-	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired, signedInFromRequest(r))
+	data, err := s.loadCapturePageData(r.Context(), ownerID, setupRequired)
 	if err != nil {
 		writeErrWithLog(r, w, http.StatusInternalServerError, "could not load capture page", err)
 		return
