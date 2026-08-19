@@ -289,10 +289,22 @@ function registerAlpineComponents(Alpine) {
       this.roundingSen = data.roundingSen || 0;
       this.totalSen = data.totalSen || 0;
       this.warnings = Array.isArray(data.warnings) ? [...data.warnings] : [];
-      this.items = Array.isArray(data.items) ? data.items.map(it => ({
-        ...it,
-        includedInSplit: it.includedInSplit !== false,
-      })) : [];
+      this.items = [];
+      for (const item of Array.isArray(data.items) ? data.items : []) {
+        const qty = Math.max(1, parseInt(item.qty, 10) || 1);
+        const total = parseInt(item.lineTotalSen, 10) || 0;
+        const unit = Math.trunc(total / qty);
+        for (let n = 0; n < qty; n++) {
+          const lineTotalSen = n === qty - 1 ? total - unit * (qty - 1) : unit;
+          this.items.push({
+            ...item,
+            qty: 1,
+            unitPriceSen: lineTotalSen,
+            lineTotalSen,
+            includedInSplit: item.includedInSplit !== false,
+          });
+        }
+      }
       if (this.items.length === 0) {
         this.items = [{ name: '', qty: 1, unitPriceSen: 0, lineTotalSen: 0, includedInSplit: true }];
       }

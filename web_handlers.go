@@ -324,13 +324,7 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 	roundingSen, _ := strconv.ParseInt(r.FormValue("rounding"), 10, 64)
 	totalSen, _ := strconv.ParseInt(r.FormValue("total"), 10, 64)
 
-	var items []struct {
-		Name            string `json:"name"`
-		Qty             int    `json:"qty"`
-		UnitPriceSen    int64  `json:"unitPriceSen"`
-		LineTotalSen    int64  `json:"lineTotalSen"`
-		IncludedInSplit bool   `json:"includedInSplit"`
-	}
+	var items []SplitItemInput
 	for i := 0; i < 100; i++ {
 		name := r.FormValue(fmt.Sprintf("item_name_%d", i))
 		if name == "" {
@@ -345,13 +339,7 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 		}
 		lineSen, _ := strconv.ParseInt(r.FormValue(fmt.Sprintf("item_line_%d", i)), 10, 64)
 		included := r.FormValue(fmt.Sprintf("item_in_split_%d", i)) != "0"
-		items = append(items, struct {
-			Name            string `json:"name"`
-			Qty             int    `json:"qty"`
-			UnitPriceSen    int64  `json:"unitPriceSen"`
-			LineTotalSen    int64  `json:"lineTotalSen"`
-			IncludedInSplit bool   `json:"includedInSplit"`
-		}{Name: name, Qty: qty, UnitPriceSen: lineSen / int64(qty), LineTotalSen: lineSen, IncludedInSplit: included})
+		items = append(items, SplitItemInput{Name: name, Qty: qty, UnitPriceSen: lineSen / int64(qty), LineTotalSen: lineSen, IncludedInSplit: &included})
 	}
 	if len(items) == 0 || totalSen <= 0 {
 		http.Redirect(w, r, "/capture", http.StatusSeeOther)
@@ -384,14 +372,7 @@ func (s *Server) handleWebCreateSplit(w http.ResponseWriter, r *http.Request) {
 		OwnerQRURL:  prof.OwnerQRURL,
 	}
 	for _, it := range items {
-		included := it.IncludedInSplit
-		in.Items = append(in.Items, struct {
-			Name            string `json:"name"`
-			Qty             int    `json:"qty"`
-			UnitPriceSen    int64  `json:"unitPriceSen"`
-			LineTotalSen    int64  `json:"lineTotalSen"`
-			IncludedInSplit *bool  `json:"includedInSplit"`
-		}{Name: it.Name, Qty: it.Qty, UnitPriceSen: it.UnitPriceSen, LineTotalSen: it.LineTotalSen, IncludedInSplit: &included})
+		in.Items = append(in.Items, it)
 	}
 
 	scanID := strings.TrimSpace(r.FormValue("scan_id"))

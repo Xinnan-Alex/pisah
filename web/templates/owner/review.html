@@ -52,8 +52,11 @@
                 <input type="hidden" :name="'item_in_split_'+i" :value="it.includedInSplit ? '1' : '0'">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                   <input type="number" step="0.01" :value="(it.lineTotalSen/100).toFixed(2)" @input="it.lineTotalSen=Math.round(parseFloat($event.target.value||0)*100); it.unitPriceSen=Math.round(it.lineTotalSen/it.qty)" style="padding:8px 10px;font-size:13px;width:120px">
-                  <button type="button" class="btn btn-sm tap" :class="it.includedInSplit ? 'btn-outline' : ''" style="font-size:12px;padding:6px 10px" @click="it.includedInSplit = !it.includedInSplit" x-text="it.includedInSplit ? 'Split' : 'Mine'"></button>
-                  <span class="hint" style="font-size:11px" x-show="!it.includedInSplit">Yours — not shared</span>
+                  <div role="group" aria-label="Who ordered this item" style="display:flex;gap:4px">
+                    <button type="button" class="btn btn-sm tap" :class="!it.includedInSplit ? '' : 'btn-outline'" :aria-pressed="!it.includedInSplit" style="font-size:12px;padding:6px 10px" @click="it.includedInSplit = false">Mine</button>
+                    <button type="button" class="btn btn-sm tap" :class="it.includedInSplit ? '' : 'btn-outline'" :aria-pressed="it.includedInSplit" style="font-size:12px;padding:6px 10px" @click="it.includedInSplit = true">Friends</button>
+                  </div>
+                  <span class="hint" style="font-size:11px" x-text="it.includedInSplit ? 'Friends can claim this' : 'You keep this item'"></span>
                 </div>
               </div>
               <button type="button" class="link tap" @click="removeItem(i)" x-show="items.length>1" aria-label="Remove">×</button>

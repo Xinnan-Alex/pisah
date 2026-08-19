@@ -65,22 +65,55 @@ type Participant struct {
 }
 
 type CreateSplitInput struct {
-	Merchant    string     `json:"merchant"`
-	OwnerName   string     `json:"ownerName"`
-	OwnerQRURL  *string    `json:"ownerQrUrl"`
-	CapturedAt  *time.Time `json:"capturedAt"`
-	SubtotalSen int64      `json:"subtotalSen"`
-	SSTSen      int64      `json:"sstSen"`
-	ServiceSen  int64      `json:"serviceSen"`
-	RoundingSen int64      `json:"roundingSen"`
-	TotalSen    int64      `json:"totalSen"`
-	Items       []struct {
-		Name            string `json:"name"`
-		Qty             int    `json:"qty"`
-		UnitPriceSen    int64  `json:"unitPriceSen"`
-		LineTotalSen    int64  `json:"lineTotalSen"`
-		IncludedInSplit *bool  `json:"includedInSplit"`
-	} `json:"items"`
+	Merchant    string           `json:"merchant"`
+	OwnerName   string           `json:"ownerName"`
+	OwnerQRURL  *string          `json:"ownerQrUrl"`
+	CapturedAt  *time.Time       `json:"capturedAt"`
+	SubtotalSen int64            `json:"subtotalSen"`
+	SSTSen      int64            `json:"sstSen"`
+	ServiceSen  int64            `json:"serviceSen"`
+	RoundingSen int64            `json:"roundingSen"`
+	TotalSen    int64            `json:"totalSen"`
+	Items       []SplitItemInput `json:"items"`
+}
+
+type SplitItemInput struct {
+	Name            string `json:"name"`
+	Qty             int    `json:"qty"`
+	UnitPriceSen    int64  `json:"unitPriceSen"`
+	LineTotalSen    int64  `json:"lineTotalSen"`
+	IncludedInSplit *bool  `json:"includedInSplit"`
+}
+
+// expandSplitItems makes every receipt unit independently claimable. The last
+// unit carries any sen remainder so the original line total is preserved.
+func expandSplitItems(items []SplitItemInput) []SplitItemInput {
+	var expanded []SplitItemInput
+	for _, item := range items {
+		qty := item.Qty
+		if qty < 1 {
+			qty = 1
+		}
+		total := item.LineTotalSen
+		if total == 0 && item.UnitPriceSen != 0 {
+			total = item.UnitPriceSen * int64(qty)
+		}
+		unit := total / int64(qty)
+		for n := 0; n < qty; n++ {
+			lineTotal := unit
+			if n == qty-1 {
+				lineTotal = total - unit*int64(qty-1)
+			}
+			expanded = append(expanded, SplitItemInput{
+				Name:            item.Name,
+				Qty:             1,
+				UnitPriceSen:    lineTotal,
+				LineTotalSen:    lineTotal,
+				IncludedInSplit: item.IncludedInSplit,
+			})
+		}
+	}
+	return expanded
 }
 
 // ---- splits ----
@@ -108,11 +141,7 @@ func (st *Store) CreateSplit(ctx context.Context, ownerID, slug string, in Creat
 	}
 	s.OwnerID = ownerID
 
-	for i, it := range in.Items {
-		qty := it.Qty
-		if qty < 1 {
-			qty = 1
-		}
+	for i, it := range expandSplitItems(in.Items) {
 		included := true
 		if it.IncludedInSplit != nil {
 			included = *it.IncludedInSplit
@@ -120,7 +149,7 @@ func (st *Store) CreateSplit(ctx context.Context, ownerID, slug string, in Creat
 		if _, err = tx.Exec(ctx, `
 			insert into items (split_id, name, qty, unit_price_sen, line_total_sen, position, included_in_split)
 			values ($1,$2,$3,$4,$5,$6,$7)`,
-			s.ID, it.Name, qty, it.UnitPriceSen, it.LineTotalSen, i, included); err != nil {
+			s.ID, it.Name, it.Qty, it.UnitPriceSen, it.LineTotalSen, i, included); err != nil {
 			return Split{}, err
 		}
 	}
